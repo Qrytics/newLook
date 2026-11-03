@@ -38,6 +38,24 @@ if [ -n "$PROJECT" ]; then
   echo "Project install into $PROJECT"
   run mkdir -p "$PROJECT/docs"
   run cp "$HERE/templates/frontend-design-workflow.md" "$PROJECT/docs/frontend-design-workflow.md"
+  # The workflow tells the agent to run scripts/ and read reference/, so they travel with it.
+  # The linter needs hallmark/scripts, so a lean copy of that sits beside them.
+  run mkdir -p "$PROJECT/docs/newlook"
+  run rm -rf "$PROJECT/docs/newlook/scripts" "$PROJECT/docs/newlook/reference" "$PROJECT/docs/newlook/hallmark"
+  run cp -R "$HERE/skills/frontend-design/scripts" "$PROJECT/docs/newlook/scripts"
+  run cp -R "$HERE/skills/frontend-design/reference" "$PROJECT/docs/newlook/reference"
+  # Photo search for assets.md lives in hallmark/scripts/theme.mjs, which is copied below with the linter.
+  run mkdir -p "$PROJECT/docs/newlook/hallmark"
+  run cp -R "$HERE/skills/hallmark/scripts" "$PROJECT/docs/newlook/hallmark/scripts"
+  run cp "$HERE/skills/hallmark/LICENSE" "$PROJECT/docs/newlook/hallmark/LICENSE"
+  if [ "$DRY" != 1 ]; then
+    # Point the workflow's relative paths at where the files actually landed.
+    sed -e 's#`scripts/#`docs/newlook/scripts/#g' -e 's#`reference/#`docs/newlook/reference/#g' \
+        -e 's# scripts/# docs/newlook/scripts/#g' -e 's# reference/# docs/newlook/reference/#g' \
+        -e 's#(`scripts/#(`docs/newlook/scripts/#g' \
+        "$HERE/templates/frontend-design-workflow.md" > "$PROJECT/docs/frontend-design-workflow.md"
+    echo "  copied scripts, references and the linter to docs/newlook/"
+  fi
   if [ -f "$PROJECT/AGENTS.md" ] && grep -q "newLook frontend workflow" "$PROJECT/AGENTS.md"; then
     echo "  AGENTS.md already has the newLook section, leaving it alone"
   elif [ "$DRY" = 1 ]; then
