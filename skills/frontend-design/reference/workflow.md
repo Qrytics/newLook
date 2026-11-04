@@ -444,10 +444,36 @@ Preserve reported severities and exit results. Investigate findings; do not supp
 
 The screenshot helper does not duplicate every Hallmark rendered check.
 
-The legacy direction verifier checks source configuration and history, not rendered design quality. Shared fonts or colors do not prove copying.
+Optional direction source checking:
 
-Do not force custom or adapted designs through an incompatible verifier.
+```sh
+node "$NEWLOOK_ROOT/scripts/direction.mjs" --project . --check
+```
 
+This reads the latest recorded direction and reports limited source evidence:
+
+- Catalog hex values found in source text.
+- Catalog font packages declared in the root package manifest.
+- Catalog font-package text found in source files.
+- Scan limitations and skipped paths.
+
+These observations do not establish that dependencies are installed, fonts render, colors are visible, or the layout matches the brief.
+
+Custom or no-longer-cataloged choices return `not-applicable`; that is not a passing design verification.
+
+`--verify` remains a compatibility alias for `--check`, with an explicit notice that it is not visual verification.
+
+Use `--json` for structured output. Add `--strict` to return exit code 1 for source-check warnings.
+
+Exit codes:
+
+- `0`: action completed; advisory warnings may remain.
+- `1`: source-check warnings failed strict policy.
+- `2`: argument, input, lock, or operational failure.
+
+Source checking never updates history. Shared fonts or colors are not treated as evidence of copying.
+
+Review the rendered result against the brief separately.
 ## Step 5 — Resolve and repeat
 
 Classify findings:
