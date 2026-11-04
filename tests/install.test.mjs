@@ -45,7 +45,14 @@ function failed(result) {
 }
 
 function fixture(t) {
-  const root = mkdtempSync(path.join(tmpdir(), 'newlook installer '));
+  // macOS temporary paths commonly start with /var, a symlink to
+  // /private/var. Use the real path so these tests exercise installer
+  // behavior rather than its intentional symlink-path rejection.
+  const temporaryRoot = realpathSync(tmpdir());
+  const root = mkdtempSync(
+    path.join(temporaryRoot, 'newlook installer '),
+  );
+
   t.after(() => rmSync(root, { recursive: true, force: true }));
   return root;
 }
