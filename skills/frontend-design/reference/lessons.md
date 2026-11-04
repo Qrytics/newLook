@@ -106,15 +106,21 @@ A rewrite drops an ID, selector, public prop, or state representation that appli
 
 Identify important contracts before editing.
 
-Use the DOM source scanner where helpful, inspect its findings, and exercise affected interactions after implementation.
+When useful and authorized, save a DOM scanner baseline before implementation and compare against it afterward.
+
+Review missing definitions and removed baseline contracts. A class without detected styles may be a legitimate behavioral hook.
+
+Exercise affected interactions after implementation.
 
 ### Evidence
 
-Report which behaviors were tested.
+Report which source checks and interactions were tested.
 
-The current DOM scanner does not save a baseline or automatically compare two runs. Its class-style findings do not always affect the exit code.
+The scanner supports saved baseline comparison, but it remains a regex-based heuristic. It does not execute components, resolve every dynamic selector, or establish runtime correctness.
 
-A "contract intact" message is not a substitute for interaction testing.
+Exit code 0 can include warnings. Exit code 1 indicates findings that failed the selected policy. Exit code 2 indicates an operational or input failure.
+
+Do not describe an intentional contract change as preserved without checking its consumers.
 
 ## 7. Reviewing findings is not fixing them
 
