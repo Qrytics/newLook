@@ -1,71 +1,183 @@
-# Lessons from real runs
+# Lessons: avoid the failure, not merely its appearance
 
-Collected from remaking two dashboards (a React app and a vanilla-JS canvas app) and from reviewing a weaker model's attempt at the same skill. Each item is something that actually went wrong.
+These lessons describe failure patterns identified in earlier newLook work.
 
-## The mistakes a weaker model made (do not repeat)
+They are not universal aesthetic laws, controlled benchmark results, or proof that every application needs the same solution.
 
-1. **It kept the dark terminal look.** The project said "hardware KVM, monospace, square corners", so it produced black + neon green + 9px tracked uppercase labels again. The rules in `AGENTS.md` fixed *constraints* (square corners, required readouts), not the palette. Keep the constraints, change everything else.
-2. **It never looked at the result in a browser.** It said "desktop+mobile verified" but the phone layout was cramped and the main screen was a black void. Run `scripts/look.mjs`, then open the PNGs and describe what you see.
-3. **It treated "27 lint findings triaged to 0 actionable" as success.** Dismissing warnings is not fixing them. A FAIL means change the code.
-4. **No focal point.** Four readouts of the same size. The number the product exists to show must be the biggest thing on the screen, with a plain sentence next to it that says what it means.
-5. **Controls were a button soup.** One long row of equal buttons with abbreviations (`VOICE: 50%`, `KVM MIC`). Group them under small labels and write real words (`Straddle 50%`, `Mic`).
-6. **Tiny text everywhere.** 9 to 11px monospace caps. Minimum 12px, body 14+.
+Read this file for Build and Redesign. Use relevant lessons for smaller tasks.
 
-## Mistakes made by the strong model, caught only by checking
+## 1. Passing code checks does not establish visual quality
 
-1. **Linted `index.html` alone** and got false "no focus styling" failures. Lint the `src` folder.
-2. **`sloplint` said "clean" while the render tier had not run.** The last line said `render tier not run`. Read the whole output.
-3. **A focus ring that faded in** (a `transition: outline-color` on an element that also uses `:focus-visible`). Fixed by drawing the highlight on a `::after` element.
-4. **File-icon names broke mid-word** (`deploy_server.p` / `s1`). Fixed with `<wbr>` after `_` and before `.`, and by widening the icon.
-5. **A hero caption that changed length** made the readout jump. Reserve its height (`min-height`).
-6. **Mobile top bar and stat grid wrapped badly** at 390px. Only the phone screenshot showed it.
-7. **Seeded demo data into a database without checking what was there** (a `/teams` check looked empty but `/runs` held data). Look at every table, or ask, before running any seed or reset command. Never run one against data you have not read.
-8. **A scripted rewrite of a source file with `sed -i`** failed on macOS (different flags). Use the editor tool or Python for in-place edits.
+### Failure
 
-## Why redesigns all looked the same (and the fix)
-Left to choose freely, a model returns to a handful of looks: dark with a neon accent, white cards with a blue gradient, a serif-and-cream "warm" page. Two redesigns by the same model on different projects had the same bones. The fix is mechanical, not advisory:
-1. `scripts/direction.mjs` deals three of fourteen directions, with palettes, installable fonts, layouts, depth, shape, assets and a signature written out in full.
-2. It keeps history per project and across projects, so a repeat is excluded or penalised.
-3. `--verify` checks the build afterwards: fonts installed and used, the direction's colours really present, and no shared fonts or main colours with another project.
-4. `reference/assets.md` decides what fills empty space, so it is not always a gradient and an icon.
+The application builds, but the agent never inspects the rendered interface.
 
-## Things that look done but are not
+Weak hierarchy, cramped controls, broken wrapping, and unreadable canvas content survive.
 
-- A component that "passes the build" can still be blank. Look at the screenshot.
-- Hallmark's static lint cannot see text drawn inside `<canvas>`. Read the canvas text in the screenshot yourself.
-- Zero console errors needs the backend running. If the app opens a WebSocket to its API, start the API first or the check fails for the wrong reason.
-- "Playwright tests pass" proves the ids and flows still work. It does not say anything about whether the page looks good.
+### Better action
 
-## Redesigning an app whose JavaScript draws the UI
+Render the affected interface when possible, capture relevant views, and inspect them with an available image-viewing capability.
 
-If a script reads ids (`getElementById('m-fps')`), toggles classes (`classList.toggle('armed')`), or tests click selectors (`locator('#btn-span')`), a rewrite of the HTML and CSS can silently break it.
+Describe concrete observations and revise confirmed weaknesses.
 
-1. **Before changing anything**, run `node scripts/dom-contract.mjs <project>`. Save the list.
-2. Keep every id and every state class, or rename it everywhere in the same change (script, tests, markup, CSS).
-3. **After**, run `dom-contract.mjs` again. It must say `contract intact`.
-4. Then run the project's own tests and its browser scripts.
-5. If a state class (`armed`, `active`, `live`, `lit`) has no CSS rule, the control will not look different when the script turns it on. Add the style or use `aria-pressed="true"` as the selector and have the script set it.
+### Evidence
 
-Put the colors the canvas draws in a short list in `design-brief.md` too: a stylesheet can be perfect while the game canvas still paints the old palette. Update the hard-coded colors in the drawing code (`fillStyle = '#56d678'`) to match, or the app looks half redesigned.
+Report rendering, screenshot capture, and image inspection separately.
 
-## Order of work that worked
+If visual inspection was unavailable, say so.
 
-1. Read the project: entry HTML, stylesheet, the script's DOM contract, tests, rules file (`AGENTS.md`), and any saved design system.
-2. Screenshot the current state (`look.mjs --tag before`). Describe what is wrong with it in five bullets.
-3. Fill in `design-brief.md`. Write the signature element down.
-4. Install fonts as packages.
-5. Rewrite the stylesheet (tokens first), then the markup, then the few lines of script that print into it.
-6. `look.mjs --tag after`, open the PNGs, fix, repeat. Check desktop, phone, and each state (straddling, spanning, modal open, empty, error).
-7. `lint.sh src`, then `dom-contract.mjs`, then the project's tests and build.
-8. Report what ran, what the audit caught, and what you could not check.
+## 2. Repeating a default look is not deliberate direction selection
 
-## Commands you will need
+### Failure
 
-```
-node scripts/dom-contract.mjs <project>
-node scripts/look.mjs --serve <project> --path "/" --tag before
-node scripts/look.mjs --url http://127.0.0.1:5173/ --tag after
-bash scripts/lint.sh src
-```
+The agent repeatedly produces the same dark dashboard, accent color, cards, and decorative treatment regardless of the product.
 
-(All paths are relative to the `frontend-design` skill folder.)
+### Better action
+
+Choose a direction explicitly from audience, task, brand, and content.
+
+Use the catalog, an adapted direction, an existing system, or a concrete custom direction.
+
+Compare meaningful alternatives when the brief is open-ended.
+
+### Evidence
+
+The brief explains why the chosen hierarchy, typography, palette, and composition suit this product.
+
+A dark interface is not itself a failure. An unexplained default is.
+
+## 3. Technical constraints do not determine every design decision
+
+### Failure
+
+A requirement such as square corners or monospace readouts is treated as a complete visual brief.
+
+### Better action
+
+Preserve actual constraints while making the remaining decisions deliberately.
+
+Brand colors are constraints when specified. Do not discard them under the claim that constraints never determine the palette.
+
+### Evidence
+
+The brief distinguishes fixed requirements from decisions open to change.
+
+## 4. Equal emphasis can erase hierarchy
+
+### Failure
+
+Several readouts or actions receive identical visual weight, leaving no clear starting point.
+
+### Better action
+
+Identify the primary task and make its relevant information or action dominant.
+
+A metrics-led screen may need one dominant number. An editor or checkout may need a different focal point.
+
+### Evidence
+
+The rendered composition has an understandable reading order that supports the task.
+
+## 5. Tiny labels and compressed controls reduce usability
+
+### Failure
+
+Small tracked capitals, abbreviations, and long rows of controls create an interface that is difficult to read or operate.
+
+### Better action
+
+Use clear terminology, deliberate grouping, readable type, suitable targets, and responsive wrapping.
+
+For a new system, avoid text below 12px unless there is a justified exception.
+
+### Evidence
+
+Inspect actual text, target geometry, keyboard behavior, resizing, and narrow layouts.
+
+Do not present house-style thresholds as complete accessibility standards.
+
+## 6. Styling changes can break behavior
+
+### Failure
+
+A rewrite drops an ID, selector, public prop, or state representation that application code or tests depend on.
+
+### Better action
+
+Identify important contracts before editing.
+
+Use the DOM source scanner where helpful, inspect its findings, and exercise affected interactions after implementation.
+
+### Evidence
+
+Report which behaviors were tested.
+
+The current DOM scanner does not save a baseline or automatically compare two runs. Its class-style findings do not always affect the exit code.
+
+A "contract intact" message is not a substitute for interaction testing.
+
+## 7. Reviewing findings is not fixing them
+
+### Failure
+
+The agent labels many findings "triaged" and then claims zero defects without changing or validating the underlying issues.
+
+### Better action
+
+Classify each material finding as a regression, existing defect, recommendation, or unknown.
+
+Fix confirmed regressions. Explain justified exceptions and blocked checks.
+
+### Evidence
+
+Preserve tool results and distinguish reviewed, fixed, waived, and unresolved findings.
+
+Compare counts only when measurement conditions match.
+
+## 8. Product-specific design is not mandatory decoration
+
+### Failure
+
+The interface could belong to any product, or an ornamental "signature" is added without improving comprehension.
+
+### Better action
+
+Make at least one substantive product-specific decision in Build and Redesign.
+
+It may be a visualization, hierarchy, preview, workflow, content treatment, or interaction.
+
+### Evidence
+
+Explain how the decision supports a real user task.
+
+Intentional whitespace and familiar controls may be the correct choices.
+
+## 9. More process does not always mean better work
+
+### Failure
+
+A small correction triggers new fonts, a palette replacement, extensive documentation, and unrelated refactoring.
+
+### Better action
+
+Match the process to the mode.
+
+Use strict planning and review for substantive design work. Keep bounded fixes bounded.
+
+### Evidence
+
+The diff and final report match the requested scope.
+
+## 10. Evidence limits must remain visible
+
+### Failure
+
+Source declarations are described as rendered results, screenshots as inspected images, or heuristic checks as complete compliance.
+
+### Better action
+
+Name exactly what was checked and what remains unknown.
+
+### Evidence
+
+The report distinguishes source checks, rendering, interaction testing, screenshot capture, and visual inspection.
