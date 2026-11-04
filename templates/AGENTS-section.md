@@ -1,12 +1,23 @@
-## newLook frontend workflow (mandatory for any UI change)
+## newLook frontend workflow
 
-Applies to any request to build, create, improve, redesign, restyle, polish or fix a website, web app,
-landing page, component or UI. Follow `docs/frontend-design-workflow.md` step by step, in order, without asking.
+For frontend and UI work, read `docs/frontend-design-workflow.md` and follow the canonical workflow it references.
 
-Non-negotiable:
-1. Read the project and any saved design system first (`.interface-design/system.md`, `design.md`, tokens). Reuse it if it exists.
-2. Pick a direction before any CSS: deal three with `direction.mjs`, choose one, record it, and follow it exactly. Never improvise a look and never reuse the previous redesign's look. Then write the design brief with one signature element. Verify with `direction.mjs --verify` afterwards.
-3. Keep the project's hard constraints (required readouts, fixed ids, square corners). They limit layout, not the palette.
-4. **Look at your work.** Take desktop and phone screenshots, open them, describe them. Never claim a design is verified without doing this.
-5. Run the linter and the DOM-contract check, fix every FAIL, then run the project's tests and build.
-6. Report which steps ran, what the audit changed, and what you could not check.
+Use the smallest mode that satisfies the request:
+
+- **Patch:** a bounded fix.
+- **Extend:** an addition using the existing design system.
+- **Redesign:** an intentional change to the agreed visual direction or structure.
+- **Audit:** inspection and recommendations without edits.
+
+Requirements:
+
+1. Read applicable project instructions, relevant source, and existing design-system documentation before editing.
+2. Preserve unrelated work and behavior. Do not turn a small fix into an unsolicited redesign.
+3. Reuse the existing design system unless the task authorizes changing it. An existing system does not skip implementation or verification.
+4. Respect permissions for dependency installation, network access, process execution, and global configuration.
+5. Use the tools actually available. Do not claim screenshots, browser tests, or visual inspection that did not occur.
+6. Verify the affected surfaces proportionately to risk. Report failed, blocked, and unrun checks separately.
+7. Treat direction catalogs and aesthetic lint as supporting guidance, not authority to override the user, accessibility, or brand requirements.
+8. Finish with scope, changes, verification results, and remaining limitations.
+
+If the workflow files are missing, report the incomplete installation rather than inventing their contents.
