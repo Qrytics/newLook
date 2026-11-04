@@ -1,72 +1,243 @@
-# Design brief: decide these things in writing BEFORE you write any CSS
+# newLook design brief
 
-A weak model skips this and produces the default dark dashboard with a green accent. Fill every line in. If you cannot, you are about to produce a template.
+Use this template for a redesign or a new visual system.
 
-## 1. Who and what
-- **Who is using this, where, doing what?** One sentence. ("An engineer dragging a game window between two monitors during a demo.")
-- **The one thing the screen must make obvious.** This becomes the focal point and the biggest thing on it.
-- **Three words for how it should feel.** Not "clean", "modern" or "sleek". Pick concrete words: "a lab bench", "a printed ledger", "a cockpit".
+For a small patch, use a short implementation note instead.
 
-## 2. Break the first idea (the direction you were dealt already did this)
-`scripts/direction.mjs` deals the look. This section is the reason it exists: left alone, a model produces the same few designs every time. Use the three below only to double-check that your chosen direction really is different from them.
-Write down the three most obvious designs for this kind of screen, then choose something else.
+For an extension, document only the new decisions and reference the established system. Do not fill out irrelevant sections merely to complete a template.
 
-| Kind of screen | Obvious (rejected by default) |
-|---|---|
-| Dev tool, dashboard, "hacker" product | Black background, neon green or cyan accent, tiny uppercase monospace labels |
-| SaaS | Blue/purple gradient, white cards with soft shadows, stat cards in a row of four |
-| Landing page | Centered hero, three feature cards with icons, testimonials, CTA banner |
-| Anything AI | Dark mode, glassy blur cards, glowing gradient orbs |
+Write the brief before broad visual changes. Keep it proportional to the task.
 
-A project's `AGENTS.md` may demand a style ("dark terminal HUD"). Keep the hard requirements (required fields, square corners) but you can still choose the palette, scale, layout and hierarchy yourself. Say which rules you kept.
+## 1. Scope
 
-## 3. Palette: start from the direction, rename to the product's world
-Take the palette from your chosen direction in `directions.md`. If you change a value, tune it (a shade lighter, a hue shifted) and keep the idea. Below is how to think about it.
+- **Mode:** Patch / Extend / Redesign / Audit.
+- **Requested outcome:**
+- **Affected routes, components, and states:**
+- **Out of scope:**
+- **Acceptance criteria:**
 
-### Pick a palette from a place, not from a mood
-Name a real physical place or object where this product lives, list its colors, then use them.
-- A KVM switch and two monitors: bone-colored front panel, black screens, one teal and one orange status light.
-- A ledger: warm paper, black ink, one red correction mark.
+State what success means in observable terms.
 
-Then define tokens (names that belong to the product, not `--gray-700`):
-- 3 surfaces (page, panel, sunken well), 4 text levels (ink, ink-2, ink-3, on-dark), 2 hairlines.
-- ONE accent per meaning. Two sides of a product can each get one (teal = Windows, vermilion = Mac). Do not add more.
-- Every pairing text-on-surface at 4.5:1 or better. The audit script checks this; do not trust your eye.
-- Never pure `#000` or `#fff`. Tint toward the accent hue.
+Example:
 
-## 4. Type: use the direction's fonts
-- **Two families at most plus a mono.** One for words, one mono for numbers and code. A dense tool can use one family.
-- Banned as a default: Inter, Roboto, Open Sans, Lato, Poppins, Montserrat, system-ui, Arial, Helvetica. Fine, readable choices: Schibsted Grotesk, Hanken Grotesk, Newsreader (serif), Martian Mono, JetBrains Mono, IBM Plex Sans/Mono, Familjen Grotesk, Spline Sans Mono.
-- Install them as npm packages so they work offline: `npm i @fontsource-variable/schibsted-grotesk @fontsource-variable/martian-mono`, then `import '@fontsource-variable/schibsted-grotesk/index.css'` in the entry file. Check the exact CSS file names in `node_modules/@fontsource-variable/<name>/`.
-- **Scale**: pick sizes from `12 / 14 / 17 / 20 / 24 / 50` (ratio about 1.2) and use nothing else. Body 14 to 16. Nothing under 12px, anywhere.
-- **Labels**: sentence case, normal tracking, body face, one step smaller. Not tiny tracked capitals.
-- **Numbers**: `font-variant-numeric: tabular-nums`. Numbers that matter are big (the hero figure at 50px, others at 24px).
-- Body lines 45 to 75 characters; line-height 1.5; headings `text-wrap: balance`.
+"The settings dialog remains keyboard-operable, fits narrow screens without horizontal page scrolling, and uses the application's existing tokens."
 
-## 5. Space and shape
-- 4px base: `4 8 12 16 24 32 48`. Put them in `:root` as `--s1` to `--s7`. Never type a raw spacing value.
-- Radius: either all square (when the brief says so) or two sizes with roles. Never one radius on everything.
-- Depth: pick ONE of hairlines, shadows, or tonal fills. Not a mix.
-- Hit targets 40px high (44 on touch). Controls grouped under a small label, not one long row of equal buttons.
+## 2. Audience and primary task
 
-## 6. The signature
-One element that could only exist for THIS product, shown on the first screen. Ask: what is this product's one job, and can I draw it? Examples that worked:
-- A window crossing two monitors: a 0 to 1920 ruler under both screens with the window's span filled in.
-- A standup becoming a PR: a five-stage pipeline strip with timings and the critic loop marked.
+- **Who uses this interface?**
+- **What are they trying to accomplish?**
+- **What context matters?** Device, environment, expertise, frequency of use, or accessibility needs.
+- **What must be easiest to notice or do?**
+- **What content or behavior is secondary?**
 
-Write it down: `Signature: ______`. Then build it before anything else.
+Do not automatically make a numeric readout the largest element. Hierarchy should follow the task.
 
-## 7. The stamp (line 1 of the main stylesheet)
-Hallmark's linter requires a comment as the first line. Fill every field truthfully:
+## 3. Baseline and constraints
 
-```css
-/* Hallmark · shape: app screen · genre: modern-minimal · theme: custom (remake, asked for by name) · paper: <your paper> · accent: <your accent> · display: <face> · body: <face>
- * nav: <how the screen is navigated> · signature: <the one element> · states: <the states you built>
- * axes: <paper>/<face>/<accent> · posture: restrained · contrast: pass
- * <one line: the idea, the scale, the spacing> */
-```
+- **Existing design-system location:**
+- **Existing tokens and components to reuse:**
+- **Brand requirements:**
+- **Behavior and public APIs to preserve:**
+- **DOM hooks or test selectors to preserve:**
+- **Supported layouts, browsers, and languages:**
+- **Dependency and performance constraints:**
+- **Known baseline defects:**
+- **Unavailable evidence:**
 
-Genres: `editorial` (consumer, story), `modern-minimal` (SaaS, dev tools), `atmospheric` (AI, music, video), `playful`. Use `shape: app screen` for dashboards and tools.
+An explicit redesign can change the visual system. State which parts are retained, adapted, or replaced.
 
-## 8. States are part of the design
-For every interactive or data element, build: default, hover, focus-visible, active, disabled, loading, empty, error. For a live tool also: connected, disconnected, armed, recording, dragging, selected. A screen with only the happy state is a quarter done.
+Do not interpret a technical constraint such as square corners or monospace readouts as permission to ignore the user's brand.
+
+## 4. Direction
+
+- **Direction:** Existing system / Catalog direction / Adapted catalog direction / Custom.
+- **Why it fits this audience and task:**
+- **What makes the hierarchy and composition appropriate:**
+- **Relevant alternatives considered:**
+- **Why those alternatives were not selected:**
+
+The catalog in `directions.md` is a set of starting points, not an exhaustive list of acceptable design.
+
+For a patch, "retain the existing direction" is a complete and valid decision.
+
+For an extension, alternatives are optional unless a real design decision exists.
+
+Do not reject a suitable direction solely because it uses common fonts, common colors, or a familiar layout.
+
+## 5. Palette and semantics
+
+- **Existing palette retained or changed:**
+- **Page and panel surfaces:**
+- **Primary and secondary text:**
+- **Borders and separators:**
+- **Primary action:**
+- **Focus indicator:**
+- **Success, warning, and error:**
+- **Chart or categorical colors, if relevant:**
+- **Dark-mode requirements, if relevant:**
+
+Use the project's token conventions.
+
+For a new system, prefer clear semantic roles. Product-specific names may be used when they remain understandable.
+
+Pure black and white are allowed when appropriate. No color is automatically good or bad because it is common.
+
+### Contrast
+
+For WCAG AA text contrast:
+
+- Normal text generally needs at least 4.5:1.
+- Large text generally needs at least 3:1.
+- Large text is approximately 24 CSS px, or 18.67 CSS px when bold.
+
+Applicable non-text UI components and graphical objects also need contrast review.
+
+These are not a complete accessibility checklist. Images, gradients, transparency, disabled states, focus indicators, and adjacent colors need appropriate evaluation.
+
+Do not write "contrast: pass" before measuring the relevant combinations.
+
+## 6. Typography
+
+- **Families and roles:**
+- **Existing delivery strategy:**
+- **Language and glyph coverage:**
+- **Fallbacks:**
+- **Body size and line height:**
+- **Heading hierarchy:**
+- **Labels and supporting text:**
+- **Numeric alignment, if relevant:**
+- **Responsive behavior:**
+- **Text-resizing behavior:**
+
+Use a coherent scale, not an arbitrary fixed number of sizes.
+
+Do not replace an appropriate brand or system font merely to appear distinctive.
+
+Small text should receive deliberate review. There is no universal WCAG rule that makes every size below 12px an automatic failure.
+
+Prefer clear labels and appropriate casing. Preserve meaningful acronyms, brand names, code, units, and established terminology.
+
+Use tabular numerals where stable alignment helps.
+
+Use comfortable line lengths for reading text. Do not impose paragraph line-length targets on buttons, tables, or compact controls.
+
+Install additional fonts only when needed and authorized. Do not assume npm font packages are appropriate for every project.
+
+## 7. Layout, spacing, and shape
+
+- **Primary layout structure:**
+- **Information hierarchy:**
+- **Density:**
+- **Spacing system:**
+- **Container widths:**
+- **Narrow-layout behavior:**
+- **Long-content behavior:**
+- **Radius roles:**
+- **Borders, tonal fills, and shadows:**
+- **Sticky or fixed elements, if any:**
+
+Use the existing spacing system when one exists.
+
+A new system should have a small, understandable set of repeated spacing decisions. One-off values are acceptable when they solve a genuine layout problem.
+
+Borders, shadows, and tonal fills may be combined when their roles are coherent.
+
+Touch-target sizing must account for applicable accessibility requirements, spacing exceptions, input method, and usability. A comfortable 44px target is a useful preference, not a blanket claim about every control's minimum legal size.
+
+## 8. Product-specific expression and assets
+
+- **Product-specific element, if useful:**
+- **How it supports comprehension or interaction:**
+- **Regions needing imagery or illustration:**
+- **Asset source and usage rights:**
+- **Alternative text or decorative treatment:**
+- **Loading and fallback behavior:**
+- **Performance budget:**
+
+A signature element is optional. Do not add decoration merely to satisfy a uniqueness requirement.
+
+Whitespace does not need to be filled.
+
+Prefer real product content and user-provided assets when suitable.
+
+Do not invent customer logos, testimonials, statistics, endorsements, screenshots, or capabilities.
+
+Do not add a visual dependency without a task-specific benefit.
+
+## 9. Interaction and states
+
+List the states relevant to the affected component.
+
+| Component or flow | Relevant states | Expected behavior | Verification |
+|---|---|---|---|
+| | | | |
+
+Consider:
+
+- Hover where applicable.
+- Focus-visible.
+- Pressed, selected, or expanded.
+- Disabled.
+- Loading.
+- Empty.
+- Error and recovery.
+- Connected or disconnected.
+- Dragging, recording, or other domain states.
+
+Also consider:
+
+- Keyboard navigation.
+- Focus order and restoration.
+- Accessible names.
+- Screen-reader announcements where appropriate.
+- Reduced motion.
+- Pointer and touch behavior.
+
+Do not create artificial states for static content.
+
+## 10. Verification plan
+
+- **Source checks:**
+- **Build and type checks:**
+- **Unit or component tests:**
+- **Browser interactions:**
+- **Routes and states:**
+- **Viewport coverage:**
+- **Keyboard and focus checks:**
+- **Zoom, text resizing, and reflow checks:**
+- **Screenshot artifacts:**
+- **Who or what can inspect the screenshots:**
+- **Known limitations:**
+
+A source declaration does not establish rendered appearance.
+
+A screenshot artifact does not establish visual inspection.
+
+Automated accessibility checks do not establish complete accessibility compliance.
+
+## 11. Optional Hallmark metadata
+
+Some Hallmark lint configurations expect a stylesheet stamp. Use the bundled linter's documented format only when that integration is relevant.
+
+Do not add or rewrite stylesheet metadata merely to complete this brief.
+
+If a stamp is required, populate it truthfully. Do not claim:
+
+- The user requested Hallmark by name when they did not.
+- Contrast passed when it was not measured.
+- States were implemented when they were not.
+- A catalog direction was followed when the design intentionally differs.
+
+If the linter's required metadata cannot represent an unknown result honestly, report the integration limitation instead of inventing a passing value.
+
+Keep the brief in a normal documentation location when possible. Do not force extensive design documentation into a generated stylesheet.
+
+## 12. Decision summary
+
+Summarize:
+
+- What is being preserved.
+- What is changing.
+- Why the change serves the user.
+- What evidence will establish completion.
+- What will remain unverified.
