@@ -192,17 +192,47 @@ Use one of these routes:
 - Adapt a catalog direction, explaining the adaptations.
 - Define a custom direction with equally concrete decisions.
 
-For an open-ended visual exploration, compare two or three meaningful alternatives before choosing. A user-supplied brand or reference may already settle the direction.
+For open-ended visual exploration, compare two or three meaningful alternatives before choosing. A user-supplied brand or reference may already settle the direction.
 
-The catalog can be listed without recording history:
+List the catalog:
 
 ```sh
 node "$NEWLOOK_ROOT/scripts/direction.mjs" --list
 ```
 
-The dealer is optional. Its history-writing commands affect the project and home directory; use them only when authorized.
+Request three keyword-ranked suggestions:
 
-Do not pick a poor fit solely to avoid repeating fonts or colors.
+```sh
+node "$NEWLOOK_ROOT/scripts/direction.mjs" --project . --brief "Developer dashboard for monitoring operations" --seed exploration-1
+```
+
+Replace the example brief with the actual audience, purpose, and desired character.
+
+The same brief, seed, catalog, and project history produce reproducible suggestions. Add `--reroll` to exclude the initial three suggestions for that input.
+
+Suggestions are advisory. Recent project choices receive a small penalty, not permanent exclusion. Do not choose a poor fit merely to avoid repeating fonts or colors.
+
+Listing, suggestions, history inspection, and source checking do not write files.
+
+When project writes are authorized, record a catalog choice:
+
+```sh
+node "$NEWLOOK_ROOT/scripts/direction.mjs" --project . --choose bench --why "Its workbench hierarchy suits this operational tool"
+```
+
+Replace the example slug and explanation with the actual decision.
+
+For a custom direction:
+
+```sh
+node "$NEWLOOK_ROOT/scripts/direction.mjs" --project . --choose custom --why "Retain the established brand while introducing a task-specific comparison layout"
+```
+
+Recording writes only project-local `.newlook/history.json`. No home-directory history is read or written.
+
+Existing history is validated rather than silently reset. Recording uses an exclusive lock and atomic file replacement. If interrupted, inspect any remaining `.newlook/direction.lock` before removing it.
+
+The history is a decision record, not the design brief. Document concrete typography, palette, layout, and interaction decisions in the brief.
 
 ### Product-specific expression
 
