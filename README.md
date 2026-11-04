@@ -288,27 +288,84 @@ The scanner is regex-based. It does not prove that components render or interact
 
 Baselines contain relative source paths and selector names. Review them before committing or sharing.
 
-### Direction catalog and legacy dealer
+### Direction catalog and project history
 
-List directions:
+The direction helper offers keyword-ranked alternatives and records intentional choices.
+
+List the catalog:
 
 ```sh
 node skills/frontend-design/scripts/direction.mjs --list
 ```
 
-The dealer can suggest directions and record choices.
+Suggest directions for an application:
 
-History-writing commands use:
+```sh
+node skills/frontend-design/scripts/direction.mjs --project "../my-app" --brief "Developer dashboard for monitoring operations" --seed exploration-1
+```
 
-- The project's `.newlook/history.json`.
-- The project's `.newlook/last-deal.json` for dealt alternatives.
-- The home directory's `.newlook-history.json`.
+Replace the application path and brief with actual values.
 
-Use those commands only when their writes are authorized.
+The same brief, seed, catalog, and project history produce reproducible suggestions. Add `--reroll` to exclude the initial three suggestions.
 
-The legacy verifier checks source configuration and history-based similarity. It does not prove rendered font use, visible palette use, visual quality, or originality.
+Recent choices receive a small ranking penalty, not permanent exclusion. Keyword ranking is guidance, not a measure of design quality.
 
-Shared fonts and colors are not independently defects.
+Record a choice:
+
+```sh
+node skills/frontend-design/scripts/direction.mjs --project "../my-app" --choose bench --why "Its workbench hierarchy fits the operational workflow"
+```
+
+Use an actual catalog slug and rationale. Custom directions can be recorded with `--choose custom`.
+
+Inspect project history:
+
+```sh
+node skills/frontend-design/scripts/direction.mjs --project "../my-app" --history
+```
+
+Only `--choose` writes history, stored in the application's `.newlook/history.json`.
+
+Listing, suggestions, history inspection, and source checking are read-only. No home-directory history is accessed, and no last-deal file is created.
+
+Legacy history entries without a schema are accepted when valid. Existing global and last-deal files are left untouched.
+
+History recording uses an exclusive lock and atomic replacement. Corrupt history causes an error instead of being silently discarded. An interrupted process can leave a lock file requiring inspection.
+
+#### Source evidence—not visual verification
+
+After recording a catalog choice:
+
+```sh
+node skills/frontend-design/scripts/direction.mjs --project "../my-app" --check --json
+```
+
+The check reports catalog hex matches, font-package declarations in the root package manifest, and font-package text found in source.
+
+It does not establish:
+
+- Dependency installation.
+- Actual imports or rendered font use.
+- Visible palette use.
+- Layout fidelity.
+- Accessibility.
+- Design quality or originality.
+
+Source comments, fixtures, unused code, generated styles, and workspace arrangements can affect results.
+
+Custom or no-longer-cataloged choices return `not-applicable`. Review those against their brief.
+
+`--verify` is retained as an explicitly labeled compatibility alias for `--check`.
+
+Exit codes:
+
+| Code | Meaning |
+|---|---|
+| 0 | Action completed; advisory warnings may remain |
+| 1 | Source-check warnings failed `--strict` policy |
+| 2 | Invalid arguments, input, lock, or operational failure |
+
+No cross-project similarity certification is performed. Shared fonts and colors are not independently defects.
 
 ### Aesthetic lint
 
