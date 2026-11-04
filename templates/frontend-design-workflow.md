@@ -1,25 +1,21 @@
 # newLook frontend workflow
 
-This document is the entry point for agents without a native skill loader.
+Use this entry point when the agent does not have a native newLook skill loader.
 
-## Locate the canonical workflow
+## Locate the workflow
 
-### Installed into an application project
+### Project installation
 
-Read:
+From the application root, read:
 
 `docs/newlook/reference/workflow.md`
 
-Paths are relative to the application project's root.
+For this route:
 
-For this installation:
+- `NEWLOOK_ROOT` is the absolute application path ending in `docs/newlook`.
+- `PROJECT_DIR` is the application or relevant workspace directory.
 
-- `NEWLOOK_ROOT` is the absolute path to `docs/newlook`.
-- Helper scripts are in `docs/newlook/scripts/`.
-- References are in `docs/newlook/reference/`.
-- Optional Hallmark scripts are in `docs/newlook/hallmark/scripts/`.
-
-### Reading directly from the newLook repository
+### Direct use from a newLook checkout
 
 Read:
 
@@ -28,52 +24,50 @@ Read:
 For this route:
 
 - `NEWLOOK_ROOT` is the absolute path to `skills/frontend-design` in the newLook checkout.
-- The application directory is the separate project being changed.
-- Run application commands from that application's directory.
+- `PROJECT_DIR` is the separate application being changed.
 
-Resolve actual paths before executing commands.
+Resolve paths before executing commands. Run application commands from the application's directory.
 
-Do not assume shell variables persist across tool calls.
+Do not assume shell variables persist between tool calls.
 
-## Choose the smallest appropriate mode
+## Follow the canonical procedure
 
-- **Patch:** fix a bounded issue.
-- **Extend:** add UI using the existing design system.
-- **Redesign:** intentionally change the agreed visual system or structure.
-- **Audit:** inspect and report without editing.
+1. Select Patch, Extend, Redesign, Build, or Audit.
+2. Inspect the project and establish a baseline.
+3. Establish a concrete design approach.
+4. Implement unless the task is Audit.
+5. Verify source, interactions, and appearance using available capabilities.
+6. Resolve findings and report actual evidence.
 
-An existing design system skips unnecessary direction generation. It does not skip implementation or verification.
+For Build and Redesign:
 
-## Requirements
+- Read the lessons.
+- Write a concrete brief.
+- Choose an explicit direction.
+- Establish hierarchy and a product-specific design decision.
+- Inspect the rendered result when possible.
+- Revise material weaknesses.
 
-1. Read applicable project instructions and relevant source before editing.
-2. Preserve unrelated changes and existing behavior.
-3. Respect permissions for commands, dependencies, network access, and global writes.
-4. Use available capabilities without claiming unavailable ones.
-5. Verify affected surfaces proportionately to risk.
-6. Distinguish source checks, rendered checks, interaction tests, screenshot capture, and visual inspection.
-7. Report failed, blocked, and unrun checks honestly.
+For Patch and Extend, keep work proportional and preserve the established design system.
 
-The direction catalog and aesthetic linter are supporting tools. They do not override user requirements, accessibility, or brand consistency.
+## Boundaries
 
-Do not add libraries, replace suitable fonts, or fill intentional whitespace merely because a supporting reference suggests doing so.
+Preserve unrelated work and required behavior.
 
-## Missing files
+Respect applicable project instructions and existing permissions.
+
+Do not invent audit results or claim unavailable tools ran.
+
+Saving a screenshot does not establish visual inspection.
+
+Supporting references and aesthetic lint do not override the user's scope, brand, accessibility, or evidence requirements.
+
+## Missing installation files
 
 If the canonical workflow is missing, report an incomplete installation.
 
-Do not invent its contents or claim the complete workflow ran.
+A bounded task may proceed using the user request and applicable project instructions, but do not claim the complete newLook workflow ran.
 
-A bounded task may still proceed using the user's request and applicable project instructions, with the limitation stated clearly.
+## Report
 
-## Final report
-
-Include:
-
-- Mode and scope.
-- Important changes or audit findings.
-- Checks performed and their actual results.
-- Artifacts captured and whether they were inspected.
-- Remaining issues and verification limitations.
-
-Do not claim visual review unless rendered output or screenshots were actually inspected.
+Finish with scope, important changes, checks and results, visual coverage, remaining issues, and limitations.
