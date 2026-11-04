@@ -310,3 +310,131 @@ test('real browser captures a fixture and reports runtime/design findings', asyn
     });
   }
 });
+
+test('axe integration reports accessibility violations and saves JSON', async (t) => {
+  // Unlike the optional browser smoke test, this test must fail if its
+  // required dependencies or browser are unavailable.
+  const root = fixture(t);
+
+  const server = createServer((request, response) => {
+    response.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+    });
+
+    response.end(`
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8">
+          <title>Accessibility integration fixture</title>
+          <style>
+            body {
+              margin: 24px;
+              background: #ffffff;
+              color: #111111;
+              font: 16px Arial, sans-serif;
+            }
+
+            button {
+              width: 120px;
+              height: 44px;
+            }
+
+            #low-contrast {
+              color: #eeeeee;
+              background: #ffffff;
+              font-size: 16px;
+            }
+          </style>
+        </head>
+        <body>
+          <main>
+            <h1>Accessibility fixture</h1>
+            <button id="unnamed" type="button"></button>
+            <p id="low-contrast">This text has insufficient contrast.</p>
+          </main>
+        </body>
+      </html>
+    `);
+  });
+
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+
+  try {
+    const url = `http://127.0.0.1:${server.address().port}/`;
+    const reportFile = path.join(root, 'accessibility-report.json');
+
+    const result = await cli([
+      '--url', url,
+      '--project', REPO,
+      '--sizes', '800x600',
+      '--out', root,
+      '--tag', 'accessibility',
+      '--settle', '0',
+      '--axe',
+      '--strict',
+      '--json',
+      '--report', reportFile,
+    ]);
+
+    assert.equal(result.code, 1, result.stderr || result.stdout);
+
+    const report = JSON.parse(result.stdout);
+
+    assert.deepEqual(report.operationalErrors, []);
+    assert.equal(report.views.length, 1);
+    assert.equal(
+      report.visualInspection,
+      'not-performed-by-this-tool',
+    );
+
+    const view = report.views[0];
+
+    assert.equal(view.accessibility.status, 'completed');
+    assert.ok(Array.isArray(view.accessibility.incomplete));
+    assert.ok(view.accessibility.passes > 0);
+
+    const violations = view.accessibility.violations.map(
+      (violation) => violation.id,
+    );
+
+    assert.ok(
+      violations.includes('button-name'),
+      `Expected button-name; received: ${violations.join(', ')}`,
+    );
+
+    assert.ok(
+      violations.includes('color-contrast'),
+      `Expected color-contrast; received: ${violations.join(', ')}`,
+    );
+
+    assert.ok(
+      view.findings.some(
+        (finding) =>
+          finding.code === 'AXE_button-name' &&
+          finding.category === 'accessibility' &&
+          finding.severity === 'error',
+      ),
+    );
+
+    assert.ok(
+      view.findings.some(
+        (finding) => finding.code === 'AXE_color-contrast',
+      ),
+    );
+
+    assert.ok(view.screenshot);
+    assert.equal(existsSync(view.screenshot), true);
+    assert.equal(existsSync(reportFile), true);
+
+    const saved = JSON.parse(readFileSync(reportFile, 'utf8'));
+    assert.deepEqual(saved, report);
+  } finally {
+    await new Promise((resolve, reject) => {
+      server.close((error) => error ? reject(error) : resolve());
+    });
+  }
+});
