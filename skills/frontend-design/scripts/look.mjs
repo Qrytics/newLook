@@ -1,214 +1,732 @@
 #!/usr/bin/env node
-// look.mjs: take screenshots of a page and run measurable checks on it.
-// It exists so an agent can LOOK at its work and get hard numbers, without puppeteer-core.
-//
-//   node look.mjs --url http://127.0.0.1:5173/            screenshots of a running dev server
-//   node look.mjs --serve ./frontend --path "/?x=1"       start the project's own Vite, look, stop it
-//
-// Options:
-//   --sizes 1600x1000,390x844   viewports (default: desktop and phone)
-//   --out <dir>                 where PNGs go (default ./shots)
-//   --tag <name>                file prefix, e.g. before / after (default "look")
-//   --wait <selector>           wait for this selector first (default body)
-//   --settle <ms>               extra wait after load (default 900)
-//   --full                      full-page screenshots (phone size is always full-page)
-//   --strict                    exit code 1 when there are PROBLEMS
-//   --help
-//
-// Needs Playwright with a Chromium: `npm i -D @playwright/test && npx playwright install chromium`
-// (or set CHROME_PATH to any Chrome/Chromium binary). It is found from the current folder,
-// the --serve folder, or the global npm root.
 
 import { createRequire } from 'node:module';
-import { pathToFileURL } from 'node:url';
-import { execSync } from 'node:child_process';
-import { mkdirSync, existsSync } from 'node:fs';
-import { createServer as netServer } from 'node:net';
+import { pathToFileURL, fileURLToPath } from 'node:url';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 
-const args = process.argv.slice(2);
-const flag = (n) => args.includes(`--${n}`);
-const opt = (n, d) => { const i = args.indexOf(`--${n}`); return i >= 0 && args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : d; };
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 
-if (flag('help') || args.length === 0) {
-  console.log(`look.mjs: screenshots plus measurable checks.
-  node look.mjs --url <url> | --serve <project dir> [--path "/"] [--sizes 1600x1000,390x844] [--out shots] [--tag after] [--wait "#root"] [--settle 900] [--full] [--strict]`);
-  process.exit(0);
+export function parseArgs(args) {
+  const options = {
+    url: null,
+    project: process.cwd(),
+    sizes: [
+      [1600, 1000],
+      [390, 844],
+    ],
+    out: path.resolve('shots'),
+    tag: 'look',
+    wait: 'body',
+    settle: 300,
+    timeout: 15_000,
+    full: false,
+    strict: false,
+    json: false,
+    axe: false,
+    overwrite: false,
+    report: null,
+  };
+
+  const switches = new Set([
+    'full',
+    'strict',
+    'json',
+    'axe',
+    'overwrite',
+  ]);
+
+  const values = new Set([
+    'url',
+    'project',
+    'sizes',
+    'out',
+    'tag',
+    'wait',
+    'settle',
+    'timeout',
+    'report',
+  ]);
+
+  const seen = new Set();
+
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+
+    if (argument === '--help' || argument === '-h') {
+      return { help: true };
+    }
+
+    if (argument === '--serve' || argument === '--path') {
+      throw new Error(
+        `${argument} is no longer supported. Start the application's ` +
+        'normal server yourself and supply its full URL with --url.',
+      );
+    }
+
+    if (!argument.startsWith('--')) {
+      throw new Error(`Unexpected argument: ${argument}`);
+    }
+
+    const name = argument.slice(2);
+
+    if (seen.has(name)) {
+      throw new Error(`Duplicate option: ${argument}`);
+    }
+    seen.add(name);
+
+    if (switches.has(name)) {
+      options[name] = true;
+      continue;
+    }
+
+    if (!values.has(name)) {
+      throw new Error(`Unknown option: ${argument}`);
+    }
+
+    const value = args[index + 1];
+
+    if (!value || value.startsWith('--')) {
+      throw new Error(`${argument} requires a value.`);
+    }
+
+    options[name] = value;
+    index += 1;
+  }
+
+  if (!options.url) {
+    throw new Error('Supply --url with an already-running application URL.');
+  }
+
+  const url = new URL(options.url);
+
+  if (!['http:', 'https:'].includes(url.protocol)) {
+    throw new Error('Only HTTP and HTTPS URLs are supported.');
+  }
+
+  if (url.username || url.password) {
+    throw new Error('Do not embed credentials in the application URL.');
+  }
+
+  options.url = url.href;
+  options.project = path.resolve(options.project);
+  options.out = path.resolve(options.out);
+
+  if (options.report) {
+    options.report = path.resolve(options.report);
+  }
+
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/.test(options.tag)) {
+    throw new Error(
+      '--tag must contain 1–80 letters, digits, underscores, or hyphens, ' +
+      'starting with a letter or digit.',
+    );
+  }
+
+  if (typeof options.sizes === 'string') {
+    options.sizes = options.sizes.split(',').map((entry) => {
+      const match = /^(\d+)x(\d+)$/.exec(entry);
+
+      if (!match) {
+        throw new Error('--sizes must look like 1600x1000,390x844.');
+      }
+
+      return [Number(match[1]), Number(match[2])];
+    });
+  }
+
+  if (
+    options.sizes.length > 8 ||
+    options.sizes.some(
+      ([width, height]) =>
+        width < 100 ||
+        height < 100 ||
+        width > 4096 ||
+        height > 4096,
+    )
+  ) {
+    throw new Error('Use 1–8 viewports with dimensions from 100 to 4096.');
+  }
+
+  const distinct = new Set(
+    options.sizes.map(([width, height]) => `${width}x${height}`),
+  );
+
+  if (distinct.size !== options.sizes.length) {
+    throw new Error('Duplicate viewport sizes are not allowed.');
+  }
+
+  for (const [name, minimum, maximum] of [
+    ['settle', 0, 30_000],
+    ['timeout', 100, 120_000],
+  ]) {
+    const value = Number(options[name]);
+
+    if (!Number.isInteger(value) || value < minimum || value > maximum) {
+      throw new Error(
+        `--${name} must be an integer from ${minimum} to ${maximum}.`,
+      );
+    }
+
+    options[name] = value;
+  }
+
+  return options;
 }
 
-const url0 = opt('url', '');
-const serveDir = opt('serve', '');
-const sizes = opt('sizes', '1600x1000,390x844').split(',').map((s) => s.split('x').map(Number));
-const outDir = path.resolve(opt('out', 'shots'));
-const tag = opt('tag', 'look');
-const waitSel = opt('wait', 'body');
-const settle = Number(opt('settle', '900'));
-
-async function resolveFrom(name, bases, sub = '') {
-  for (const base of bases) {
+export function resolveDependency(name, project) {
+  for (const base of [project, HERE]) {
     try {
-      const req = createRequire(path.join(path.resolve(base), 'noop.js'));
-      return req.resolve(sub ? `${name}/${sub}` : name);
-    } catch { /* try next */ }
+      const require = createRequire(
+        path.join(path.resolve(base), '__newlook_resolve__.cjs'),
+      );
+      return require.resolve(name);
+    } catch {
+      // Try the next location.
+    }
   }
+
   return null;
 }
 
-async function loadPlaywright() {
-  let globalRoot = '';
-  try { globalRoot = execSync('npm root -g', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { /* none */ }
-  const bases = [process.cwd(), serveDir || process.cwd(), globalRoot ? path.dirname(globalRoot) : ''].filter(Boolean);
-  for (const name of ['@playwright/test', 'playwright', 'playwright-core']) {
-    const p = await resolveFrom(name, bases);
-    if (p) {
-      const m = await import(pathToFileURL(p).href);
-      // CommonJS entries expose their exports under `default` when loaded with import().
-      const found = m.chromium || (m.default && m.default.chromium);
-      if (found) return found;
+export async function loadChromium(project) {
+  for (const name of [
+    'playwright',
+    '@playwright/test',
+    'playwright-core',
+  ]) {
+    const entry = resolveDependency(name, project);
+
+    if (!entry) continue;
+
+    const imported = await import(pathToFileURL(entry).href);
+    const chromium = imported.chromium || imported.default?.chromium;
+
+    if (chromium) return chromium;
+  }
+
+  throw new Error(
+    'Playwright not found. Use --project to identify a project with ' +
+    'playwright, @playwright/test, or playwright-core installed. ' +
+    'Install dependencies only when authorized.',
+  );
+}
+
+// Executes inside the browser. Intentionally limited to layout/design hints.
+// axe-core, when requested, handles supplementary accessibility checks.
+export function auditInPage() {
+  const findings = [];
+  const fontSizes = new Set();
+  const fontFamilies = new Set();
+
+  function label(element) {
+    return (
+      element.tagName.toLowerCase() +
+      (element.id ? `#${element.id}` : '')
+    );
+  }
+
+  function visible(element) {
+    const bounds = element.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) return false;
+
+    for (
+      let current = element;
+      current;
+      current = current.parentElement
+    ) {
+      const style = getComputedStyle(current);
+
+      if (
+        style.display === 'none' ||
+        style.visibility === 'hidden' ||
+        style.visibility === 'collapse' ||
+        Number(style.opacity) === 0
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function add(code, message, element, details = {}) {
+    findings.push({
+      code,
+      severity: 'warning',
+      category: 'heuristic',
+      message,
+      element: element ? label(element) : null,
+      ...details,
+    });
+  }
+
+  for (const element of document.querySelectorAll('body *')) {
+    if (
+      ['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE'].includes(
+        element.tagName,
+      ) ||
+      !visible(element)
+    ) {
+      continue;
+    }
+
+    const ownsText = [...element.childNodes].some(
+      (node) =>
+        node.nodeType === Node.TEXT_NODE &&
+        node.textContent.trim().length > 0,
+    );
+
+    if (!ownsText) continue;
+
+    const style = getComputedStyle(element);
+    const size = Number.parseFloat(style.fontSize);
+
+    fontSizes.add(size);
+    fontFamilies.add(style.fontFamily);
+
+    if (size < 12) {
+      add(
+        'SMALL_TEXT',
+        'Text below the newLook 12px design default; review readability.',
+        element,
+        { size },
+      );
     }
   }
-  return null;
-}
 
-const freePort = () => new Promise((res, rej) => {
-  const s = netServer(); s.listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => res(port)); }); s.on('error', rej);
-});
+  if (document.documentElement.scrollWidth > innerWidth + 1) {
+    add(
+      'HORIZONTAL_OVERFLOW',
+      'Page exceeds viewport width; determine whether overflow is intentional.',
+      null,
+      {
+        viewportWidth: innerWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+      },
+    );
+  }
 
-let viteServer = null;
-let baseUrl = url0;
-if (serveDir) {
-  const pj = await resolveFrom('vite', [serveDir], 'package.json');
-  if (!pj) { console.error(`No Vite found under ${serveDir}. Start your dev server yourself and use --url.`); process.exit(2); }
-  const { createServer } = await import(pathToFileURL(path.join(path.dirname(pj), 'dist/node/index.js')).href);
-  const port = await freePort();
-  viteServer = await createServer({ root: path.resolve(serveDir), server: { host: '127.0.0.1', port, strictPort: true }, logLevel: 'error' });
-  await viteServer.listen();
-  baseUrl = `http://127.0.0.1:${port}${opt('path', '/')}`;
-}
-if (!baseUrl) { console.error('Give --url <url> or --serve <project dir>.'); process.exit(2); }
+  for (const element of document.querySelectorAll(
+    'button, a[href], input:not([type="hidden"]), select, textarea, ' +
+    '[role="button"], summary',
+  )) {
+    if (!visible(element)) continue;
 
-const chromium = await loadPlaywright();
-if (!chromium) {
-  console.error('Playwright not found. Install it, then retry:\n  npm i -D @playwright/test && npx playwright install chromium\nOr set CHROME_PATH to a Chrome binary and install playwright-core.');
-  if (viteServer) await viteServer.close();
-  process.exit(2);
-}
+    const bounds = element.getBoundingClientRect();
 
-// Runs inside the page. Returns { problems: [], notes: [] }.
-function auditInPage() {
-  const problems = [], notes = [];
-  const sel = (el) => {
-    let s = el.tagName.toLowerCase();
-    if (el.id) s += `#${el.id}`;
-    else if (el.classList.length) s += '.' + [...el.classList].slice(0, 2).join('.');
-    return s;
+    if (bounds.width < 32 || bounds.height < 32) {
+      add(
+        'SMALL_TARGET',
+        'Small interactive target; review input method, spacing, and exceptions. ' +
+        'This threshold is not a complete WCAG target-size rule.',
+        element,
+        {
+          width: Math.round(bounds.width),
+          height: Math.round(bounds.height),
+        },
+      );
+    }
+  }
+
+  const canvasCount = [...document.querySelectorAll('canvas')]
+    .filter(visible).length;
+
+  return {
+    findings,
+    measurements: {
+      fontSizes: [...fontSizes].sort((left, right) => left - right),
+      // These are computed declarations, not proof of actual glyph font usage.
+      fontFamilies: [...fontFamilies].sort(),
+      visibleCanvases: canvasCount,
+    },
   };
-  const visible = (el) => {
-    const cs = getComputedStyle(el), r = el.getBoundingClientRect();
-    return cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) > 0.05 && r.width > 0 && r.height > 0;
-  };
-  const cvs = document.createElement('canvas'); cvs.width = cvs.height = 1;
-  const cx = cvs.getContext('2d', { willReadFrequently: true });
-  const rgba = (css) => { cx.clearRect(0, 0, 1, 1); cx.fillStyle = '#000'; cx.fillStyle = css; cx.fillRect(0, 0, 1, 1); const d = cx.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2], d[3] / 255]; };
-  const over = (top, under) => { const a = top[3] + under[3] * (1 - top[3]); return a === 0 ? [0, 0, 0, 0] : [0, 1, 2].map((i) => (top[i] * top[3] + under[i] * under[3] * (1 - top[3])) / a).concat(a); };
-  const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
-  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
-  const bgOf = (el) => {
-    const chain = [];
-    for (let n = el; n; n = n.parentElement) {
-      const cs = getComputedStyle(n);
-      if (cs.backgroundImage !== 'none') return null; // gradient or image: unknown
-      chain.push(rgba(cs.backgroundColor));
-      if (chain[chain.length - 1][3] === 1) break;
-    }
-    let acc = [255, 255, 255, 1];
-    for (let i = chain.length - 1; i >= 0; i--) acc = over(chain[i], acc);
-    return acc;
-  };
-
-  // text elements: elements that directly own non-empty text
-  const textEls = [...document.querySelectorAll('body *')].filter((el) => visible(el) && [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim().length > 0) && !['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(el.tagName));
-  const small = [], caps = [], lowContrast = [], sizes = new Set(), families = new Set();
-  for (const el of textEls) {
-    const cs = getComputedStyle(el), px = parseFloat(cs.fontSize);
-    sizes.add(Math.round(px));
-    families.add(cs.fontFamily.split(',')[0].replace(/["']/g, '').trim());
-    const txt = el.textContent.trim().slice(0, 28);
-    if (px < 12) small.push(`${sel(el)} ${px}px "${txt}"`);
-    const ls = cs.letterSpacing === 'normal' ? 0 : parseFloat(cs.letterSpacing) / px;
-    if (px <= 15 && (cs.textTransform === 'uppercase' || cs.fontVariantCaps !== 'normal' || ls > 0.03) && /[a-zA-Z]{3,}/.test(el.textContent)) {
-      if (cs.textTransform === 'uppercase' || ls > 0.03) caps.push(`${sel(el)} ${px}px "${txt}"`);
-    }
-    const fg = rgba(cs.color), bg = bgOf(el);
-    if (bg) {
-      const eff = over(fg, bg), r = ratio(eff, bg), large = px >= 24 || (px >= 18.66 && Number(cs.fontWeight) >= 700);
-      if (r < (large ? 3 : 4.5)) lowContrast.push(`${sel(el)} ${r.toFixed(1)}:1 "${txt}"`);
-    }
-  }
-  const list = (arr, n = 5) => arr.slice(0, n).join('\n      ') + (arr.length > n ? `\n      ... and ${arr.length - n} more` : '');
-  if (small.length) problems.push(`${small.length} text elements under 12px (minimum 12, body 14+):\n      ${list(small)}`);
-  if (caps.length) problems.push(`${caps.length} small uppercase or letter-spaced labels (use sentence case, no tracking):\n      ${list(caps)}`);
-  if (lowContrast.length) problems.push(`${lowContrast.length} text elements below contrast 4.5:1 (3:1 if large):\n      ${list(lowContrast)}`);
-
-  // horizontal overflow
-  const vw = window.innerWidth;
-  if (document.documentElement.scrollWidth > vw + 1) {
-    const off = [...document.querySelectorAll('body *')].filter((el) => visible(el) && el.getBoundingClientRect().right > vw + 1).map((el) => `${sel(el)} right=${Math.round(el.getBoundingClientRect().right)}`);
-    problems.push(`page scrolls sideways at ${vw}px wide (scrollWidth ${document.documentElement.scrollWidth}):\n      ${list(off)}`);
-  }
-
-  // hit targets
-  const targets = [...document.querySelectorAll('button, a[href], input:not([type=hidden]), select, textarea, [role=button], summary')].filter(visible);
-  const tiny = targets.filter((el) => { const r = el.getBoundingClientRect(); return (r.height < 32 || r.width < 32) && !(el.type === 'checkbox' || el.type === 'radio'); }).map((el) => { const r = el.getBoundingClientRect(); return `${sel(el)} ${Math.round(r.width)}x${Math.round(r.height)}`; });
-  if (tiny.length) problems.push(`${tiny.length} controls smaller than 32px (aim for 40 to 44):\n      ${list(tiny)}`);
-
-  // accessible names
-  const unnamed = targets.filter((el) => {
-    if (el.matches('input,select,textarea')) return !(el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.getAttribute('title') || (el.labels && el.labels.length) || el.closest('label'));
-    return !(el.textContent.trim() || el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.getAttribute('title'));
-  }).map(sel);
-  if (unnamed.length) problems.push(`${unnamed.length} controls with no accessible name (add text or aria-label):\n      ${list(unnamed)}`);
-  const noAlt = [...document.images].filter((i) => !i.hasAttribute('alt')).length;
-  if (noAlt) problems.push(`${noAlt} images with no alt attribute`);
-
-  // structure and system health
-  const h1 = document.querySelectorAll('h1').length;
-  if (h1 !== 1) notes.push(`${h1} <h1> elements (expected exactly 1)`);
-  if (!document.documentElement.lang) notes.push('<html> has no lang attribute');
-  if (sizes.size > 9) notes.push(`${sizes.size} distinct font sizes (${[...sizes].sort((a, b) => a - b).join(', ')}). A scale has 5 to 7.`);
-  if (families.size > 3) notes.push(`${families.size} font families in use: ${[...families].join(', ')} (use at most 2 plus a mono)`);
-  const sizeList = [...sizes].sort((a, b) => a - b);
-  notes.push(`font sizes in use: ${sizeList.join(', ')}px; families: ${[...families].join(', ')}`);
-  const canv = [...document.querySelectorAll('canvas')].filter(visible).length;
-  if (canv) notes.push(`${canv} visible <canvas>: text drawn inside a canvas is NOT covered by these checks, read it in the screenshot`);
-  return { problems, notes };
 }
 
-mkdirSync(outDir, { recursive: true });
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
-let totalProblems = 0;
-try {
-  for (const [w, h] of sizes) {
-    const page = await browser.newPage({ viewport: { width: w, height: h } });
-    const errs = [];
-    page.on('pageerror', (e) => errs.push(`pageerror: ${e.message}`));
-    page.on('console', (m) => { if (m.type() === 'error') errs.push(`console: ${m.text().slice(0, 160)}`); });
-    await page.goto(baseUrl, { waitUntil: 'load' });
-    try { await page.waitForSelector(waitSel, { timeout: 8000 }); } catch { errs.push(`selector never appeared: ${waitSel}`); }
-    await page.waitForTimeout(settle);
-    const file = path.join(outDir, `${tag}-${w}x${h}.png`);
-    await page.screenshot({ path: file, fullPage: flag('full') || w < 600 });
-    const { problems, notes } = await page.evaluate(auditInPage);
-    console.log(`\n=== ${w}x${h}  ${file}`);
-    if (errs.length) { console.log(`  ERRORS (${errs.length}):`); [...new Set(errs)].slice(0, 6).forEach((e) => console.log(`    ${e}`)); totalProblems += errs.length; }
-    if (problems.length) { console.log('  PROBLEMS:'); problems.forEach((p) => console.log(`   - ${p}`)); totalProblems += problems.length; }
-    else console.log('  PROBLEMS: none found by the automatic checks');
-    notes.forEach((n) => console.log(`  note: ${n}`));
-    await page.close();
+export function exitCode(report, strict) {
+  if (report.operationalErrors.length) return 2;
+
+  if (
+    strict &&
+    report.views.some(
+      (view) =>
+        view.findings.length > 0 ||
+        (view.accessibility?.incomplete.length ?? 0) > 0,
+    )
+  ) {
+    return 1;
   }
-} finally {
-  await browser.close();
-  if (viteServer) await viteServer.close();
+
+  return 0;
 }
-console.log(`\nNow OPEN the PNG files above and look at them. Numbers cannot see empty space, a weak focal point, or ugly spacing.`);
-process.exit(flag('strict') && totalProblems ? 1 : 0);
+
+export async function runLook(options) {
+  const report = {
+    schema: 1,
+    tool: 'newlook-look',
+    url: options.url,
+    startedAt: new Date().toISOString(),
+    views: [],
+    operationalErrors: [],
+    visualInspection: 'not-performed-by-this-tool',
+    limitations: [
+      'Screenshots must be opened and inspected separately.',
+      'Heuristic findings are review signals, not compliance verdicts.',
+      'Computed font-family declarations do not establish actual glyph font usage.',
+      'Canvas content, shadow DOM, and iframe coverage require separate review.',
+      'Only the requested URL and its initial state are inspected.',
+      'No authentication setup or interaction sequence is performed.',
+      'Accessibility automation does not establish complete compliance.',
+    ],
+  };
+
+  let browser;
+
+  try {
+    const files = options.sizes.map(([width, height]) =>
+      path.join(options.out, `${options.tag}-${width}x${height}.png`),
+    );
+
+    if (options.report && files.includes(options.report)) {
+      throw new Error('The JSON report path cannot be a screenshot path.');
+    }
+
+    for (const file of [
+      ...files,
+      ...(options.report ? [options.report] : []),
+    ]) {
+      if (!options.overwrite && existsSync(file)) {
+        throw new Error(
+          `Output already exists: ${file}. Choose another tag/path, ` +
+          'or explicitly use --overwrite.',
+        );
+      }
+    }
+
+    let axeSource = null;
+
+    if (options.axe) {
+      const axeEntry = resolveDependency('axe-core/axe.min.js', options.project);
+
+      if (!axeEntry) {
+        throw new Error(
+          '--axe requested, but axe-core was not found. ' +
+          'Install it in the selected project only when authorized.',
+        );
+      }
+
+      axeSource = readFileSync(axeEntry, 'utf8');
+    }
+
+    const chromium = await loadChromium(options.project);
+
+    browser = await chromium.launch({
+      executablePath: process.env.CHROME_PATH || undefined,
+      timeout: options.timeout,
+    });
+
+    mkdirSync(options.out, { recursive: true });
+
+    for (let index = 0; index < options.sizes.length; index += 1) {
+      const [width, height] = options.sizes[index];
+      const view = {
+        viewport: { width, height },
+        screenshot: null,
+        findings: [],
+        measurements: null,
+        accessibility: {
+          status: options.axe ? 'pending' : 'not-run',
+          violations: [],
+          incomplete: [],
+          passes: 0,
+        },
+      };
+
+      report.views.push(view);
+
+      let context;
+
+      try {
+        context = await browser.newContext({
+          viewport: { width, height },
+        });
+
+        const page = await context.newPage();
+        page.setDefaultTimeout(options.timeout);
+        page.setDefaultNavigationTimeout(options.timeout);
+
+        function runtimeFinding(code, message) {
+          // Cap log collection to avoid unbounded application error loops.
+          if (view.findings.length >= 200) return;
+
+          view.findings.push({
+            code,
+            severity: 'error',
+            category: 'runtime',
+            message: String(message).slice(0, 1000),
+          });
+        }
+
+        page.on('pageerror', (error) => {
+          runtimeFinding('PAGE_ERROR', error.message);
+        });
+
+        page.on('console', (message) => {
+          if (message.type() === 'error') {
+            runtimeFinding('CONSOLE_ERROR', message.text());
+          }
+        });
+
+        const response = await page.goto(options.url, {
+          waitUntil: 'load',
+        });
+
+        if (response && response.status() >= 400) {
+          runtimeFinding(
+            'HTTP_ERROR',
+            `Navigation returned HTTP ${response.status()}.`,
+          );
+        }
+
+        await page.waitForSelector(options.wait, {
+          state: 'visible',
+        });
+
+        await page.waitForFunction(
+          () => !document.fonts || document.fonts.status === 'loaded',
+          null,
+          { timeout: options.timeout },
+        );
+
+        if (options.settle) {
+          await page.waitForTimeout(options.settle);
+        }
+
+        const audit = await page.evaluate(auditInPage);
+        view.findings.push(...audit.findings);
+        view.measurements = audit.measurements;
+
+        if (axeSource) {
+          await page.addScriptTag({ content: axeSource });
+
+          const accessibility = await page.evaluate(async () => {
+            const result = await window.axe.run(document, {
+              resultTypes: ['violations', 'incomplete', 'passes'],
+            });
+
+            function simplify(rule) {
+              return {
+                id: rule.id,
+                impact: rule.impact,
+                description: rule.description,
+                help: rule.help,
+                helpUrl: rule.helpUrl,
+                nodes: rule.nodes.map((node) => ({
+                  target: node.target,
+                  failureSummary: node.failureSummary,
+                })),
+              };
+            }
+
+            return {
+              status: 'completed',
+              violations: result.violations.map(simplify),
+              incomplete: result.incomplete.map(simplify),
+              passes: result.passes.length,
+            };
+          });
+
+          view.accessibility = accessibility;
+
+          for (const violation of accessibility.violations) {
+            view.findings.push({
+              code: `AXE_${violation.id}`,
+              severity: 'error',
+              category: 'accessibility',
+              message: violation.help,
+              impact: violation.impact,
+              helpUrl: violation.helpUrl,
+            });
+          }
+        }
+
+        await page.screenshot({
+          path: files[index],
+          fullPage: options.full || width < 600,
+          timeout: options.timeout,
+        });
+
+        view.screenshot = files[index];
+      } catch (error) {
+        report.operationalErrors.push({
+          viewport: { width, height },
+          message: error.message,
+        });
+      } finally {
+        if (context) {
+          try {
+            await context.close();
+          } catch (error) {
+            report.operationalErrors.push({
+              message: `Context cleanup failed: ${error.message}`,
+            });
+          }
+        }
+      }
+    }
+  } catch (error) {
+    report.operationalErrors.push({ message: error.message });
+  } finally {
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (error) {
+        report.operationalErrors.push({
+          message: `Browser cleanup failed: ${error.message}`,
+        });
+      }
+    }
+  }
+
+  return report;
+}
+
+function printHelp() {
+  console.log(`
+look.mjs: screenshots, layout hints, and optional axe-core checks
+
+Usage:
+  node look.mjs --url http://127.0.0.1:5173/ [options]
+
+Options:
+  --project DIR    Dependency lookup directory; default current directory
+  --sizes LIST     Default 1600x1000,390x844
+  --out DIR        Screenshot directory; default shots
+  --tag NAME       Screenshot prefix; default look
+  --wait SELECTOR  Wait for a visible element; default body
+  --settle MS      Additional wait; default 300
+  --timeout MS     Per-operation timeout; default 15000
+  --full           Full-page capture at all sizes
+  --axe            Run locally installed axe-core
+  --json           Print a JSON report
+  --report FILE    Also save the JSON report
+  --strict         Exit 1 for findings or incomplete axe checks
+  --overwrite      Permit replacement of existing output files
+  --help           Show help
+
+Exit codes:
+  0  Collection completed; findings may exist without --strict
+  1  Strict policy found issues requiring review
+  2  Argument, dependency, navigation, capture, or other operational failure
+
+Start your application separately. --serve and --path are unsupported.
+No dependencies are installed automatically.
+Screenshot capture is not visual inspection.
+`);
+}
+
+function printHuman(report) {
+  for (const view of report.views) {
+    console.log(
+      `\n${view.viewport.width}x${view.viewport.height}`,
+    );
+    console.log(`Screenshot: ${view.screenshot || 'not captured'}`);
+    console.log(`Accessibility: ${view.accessibility.status}`);
+
+    for (const finding of view.findings) {
+      console.log(
+        `  ${finding.severity.toUpperCase()} ${finding.code}: ` +
+        finding.message,
+      );
+    }
+
+    if (view.accessibility.incomplete.length) {
+      console.log(
+        `  Axe checks needing review: ${view.accessibility.incomplete.length}`,
+      );
+    }
+  }
+
+  for (const error of report.operationalErrors) {
+    console.error(`Operational failure: ${error.message}`);
+  }
+
+  console.log(
+    '\nOpen the screenshots for visual review. This tool did not inspect them.',
+  );
+  console.log(
+    'Reports can include application URLs, selectors, and error text. ' +
+    'Review artifacts before sharing.',
+  );
+}
+
+async function main() {
+  let options;
+  let report;
+
+  try {
+    options = parseArgs(process.argv.slice(2));
+
+    if (options.help) {
+      printHelp();
+      return;
+    }
+
+    report = await runLook(options);
+
+    if (options.report) {
+      /*
+       * Do not overwrite reports on a failed preflight unless explicitly
+       * allowed. A report destination may have appeared after preflight.
+       */
+      if (options.overwrite || !existsSync(options.report)) {
+        try {
+          mkdirSync(path.dirname(options.report), { recursive: true });
+          writeFileSync(
+            options.report,
+            `${JSON.stringify(report, null, 2)}\n`,
+            { flag: options.overwrite ? 'w' : 'wx' },
+          );
+        } catch (error) {
+          report.operationalErrors.push({
+            message: `Report save failed: ${error.message}`,
+          });
+        }
+      }
+    }
+
+    if (options.json) {
+      console.log(JSON.stringify(report, null, 2));
+    } else {
+      printHuman(report);
+    }
+
+    process.exitCode = exitCode(report, options.strict);
+  } catch (error) {
+    const failure = {
+      schema: 1,
+      tool: 'newlook-look',
+      operationalErrors: [{ message: error.message }],
+    };
+
+    if (process.argv.includes('--json')) {
+      console.log(JSON.stringify(failure, null, 2));
+    } else {
+      console.error(`look.mjs failed: ${error.message}`);
+    }
+
+    process.exitCode = 2;
+  }
+}
+
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  await main();
+}
