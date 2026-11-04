@@ -1,68 +1,81 @@
 ---
 name: frontend-design
-description: Use for frontend and UI work, including building, extending, fixing, polishing, auditing, or redesigning websites, web apps, landing pages, and components. Preserve requested scope, reuse appropriate design systems, implement deliberately, and verify with the capabilities actually available.
+description: Use for building, improving, extending, fixing, polishing, redesigning, or auditing frontend interfaces. Provides a concrete design-and-verification workflow: inspect the project, establish scope, choose a deliberate direction, implement, inspect rendered results, and report evidence.
 ---
 
 # newLook frontend design
 
-Use newLook to deliver useful, accessible, coherent interfaces without breaking existing behavior or expanding the user's request unnecessarily.
+Deliver interfaces that are useful, coherent, accessible, and recognizably suited to their product.
 
-Distinctive design is valuable when it serves the product. Novelty does not take priority over usability, correctness, accessibility, or brand consistency.
+Do not stop at technically valid code. For substantive design work, establish visual hierarchy, make deliberate design decisions, and inspect the rendered result when the environment permits it.
 
-## Start here
+Do not turn a bounded fix into an unsolicited redesign.
 
-Read `reference/workflow.md` before editing.
+## Required entry point
 
-Resolve paths relative to this skill's actual installation directory, not the user's current working directory.
+Read `reference/workflow.md` before starting.
 
-The skill directory contains:
+That document is the authoritative newLook workflow. Do not create a competing procedure from supporting references.
 
-- `reference/workflow.md`: the canonical workflow.
-- `reference/design-brief.md`: a proportional design-brief template.
-- `reference/directions.md`: optional starting points for visual exploration.
-- `reference/assets.md`: supporting asset guidance.
-- `reference/lint-fixes.md`: guidance for interpreting findings.
-- `scripts/`: optional audit and measurement helpers.
+Resolve this skill's actual directory before using its scripts.
 
-In the canonical workflow, `NEWLOOK_ROOT` means this skill's directory.
+In the workflow:
 
-## Choose the smallest appropriate mode
+- `NEWLOOK_ROOT` is this skill's absolute directory.
+- `PROJECT_DIR` is the application's absolute directory.
 
-- **Patch:** fix a bounded visual or interaction problem.
-- **Extend:** add UI using the established design language.
-- **Redesign:** intentionally change the agreed visual system or structure.
-- **Audit:** inspect and report without editing.
+Never execute commands containing unresolved path names or missing arguments.
 
-Infer the mode from the user's request. Ask a focused question only when ambiguity materially affects scope, behavior, or authorization.
+## Modes
 
-An existing design system skips unnecessary direction generation. It never skips implementation or verification.
+- **Patch:** a bounded correction.
+- **Extend:** new UI within an established design system.
+- **Redesign:** an intentional visual or structural change.
+- **Build:** a new interface without an established design.
+- **Audit:** inspect and recommend without editing application files.
 
-## Capability honesty
+Infer the mode from the request and project context. Ask a focused question only when ambiguity materially changes scope or behavior.
 
-Use the capabilities actually available in the host environment.
+## Concrete outputs
 
-- A saved screenshot is not evidence that you inspected it.
-- Source declarations do not establish rendered appearance.
-- Passing automated checks does not establish complete accessibility.
-- Missing tools must be reported, not silently treated as passing checks.
-- Respect existing authorization for commands, dependency installation, network access, and global writes.
+For substantive Build and Redesign tasks, produce:
 
-Do not assume that any particular browser, shell, package manager, or image-viewing tool exists.
+1. Baseline observations or a documented absence of an existing UI.
+2. A brief with a chosen direction, hierarchy, tokens, and relevant states.
+3. The implementation.
+4. Verification evidence and a final report.
 
-## Supporting references
+Save baseline and brief notes under `.newlook/` when project writes are authorized and that location is appropriate. Otherwise keep them in the plan or response.
 
-Load additional guidance only when relevant and available:
+For Patch and Extend, use shorter notes proportional to the change.
 
-- Product UI and dashboards: `../interface-design/SKILL.md`.
-- Marketing and editorial pages: `../hallmark/SKILL.md`.
-- Typography: `../typography/SKILL.md` and relevant companion files.
-- Assets: `reference/assets.md`.
-- Optional visual libraries: `reference/libraries.md`.
+Evidence documents are not a substitute for implementation or testing.
 
-These references provide craft guidance, not permission to expand the task.
+## Supporting material
 
-If a supporting reference is missing, continue using the canonical workflow and report the limitation only when relevant.
+Load only what is relevant:
 
-Where supporting references conflict with this skill's scope, permissions, evidence requirements, or reporting rules, follow the canonical workflow.
+- `reference/lessons.md`: known failure patterns; required for Build and Redesign.
+- `reference/design-brief.md`: brief template.
+- `reference/directions.md`: visual direction catalog.
+- `reference/lint-fixes.md`: finding interpretation.
+- `reference/assets.md`: asset guidance.
+- `reference/libraries.md`: optional visual libraries.
+- `../interface-design/SKILL.md`: product UI craft.
+- `../hallmark/SKILL.md`: marketing and editorial craft.
+- `../typography/SKILL.md`: typography guidance.
 
-Do not follow blanket instructions to replace suitable fonts, fill intentional whitespace, install unnecessary libraries, force a signature element, or redesign unrelated UI.
+Missing optional references must not block otherwise useful work.
+
+Supporting material does not override the user's scope, project constraints, permission boundaries, or evidence requirements.
+
+## Non-negotiable behavior
+
+- Read before editing.
+- Preserve unrelated changes and required behavior.
+- Make design decisions deliberately.
+- Use available tools; do not pretend unavailable tools ran.
+- Inspect rendered results when possible.
+- Fix confirmed regressions.
+- Report blocked checks and remaining uncertainty.
+- Never invent customer claims, endorsements, statistics, or audit results.
