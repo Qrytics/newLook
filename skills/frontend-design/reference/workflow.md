@@ -320,23 +320,63 @@ For broader changes, include text resizing or zoom, reflow, and reduced-motion b
 
 Do not perform real payments, destructive actions, or external communications merely to collect evidence.
 
-### Screenshots
+### Screenshots and optional accessibility checks
 
-The helper can inspect an already-running app:
+Start the application using its normal project command, then use its actual URL:
 
 ```sh
 node "$NEWLOOK_ROOT/scripts/look.mjs" --url "http://127.0.0.1:5173/" --tag after
 ```
 
-Use the actual application URL.
+The helper does not start servers. Its former `--serve` and `--path` options are unsupported.
 
-Its `--serve` mode is Vite-specific. Other applications should use their normal server and `--url`.
+Dependencies are resolved from the current directory or the helper's installation location. Use `--project` to select another dependency lookup directory.
 
-The helper combines accessibility heuristics and design preferences. It cannot establish complete accessibility compliance.
+For additional accessibility checks, use locally installed axe-core:
+
+```sh
+node "$NEWLOOK_ROOT/scripts/look.mjs" --url "http://127.0.0.1:5173/" --axe --json --report ".newlook/look-after.json" --tag after
+```
+
+The application project or selected dependency directory must provide Playwright and, when requested, axe-core. No dependencies are installed automatically.
+
+Useful options:
+
+- `--project DIR`: dependency lookup directory.
+- `--sizes 1600x1000,390x844`: viewport sizes.
+- `--wait SELECTOR`: wait for a visible application-readiness element.
+- `--settle MS`: additional delay after readiness.
+- `--timeout MS`: per-operation timeout.
+- `--out DIR`: screenshot destination.
+- `--tag NAME`: screenshot prefix.
+- `--full`: full-page capture at every viewport.
+- `--json`: print a structured report.
+- `--report FILE`: also save the report.
+- `--axe`: run axe-core.
+- `--strict`: return exit code 1 for findings or incomplete axe checks.
+- `--overwrite`: explicitly permit replacement of existing output files.
+
+Choose a new tag for each capture unless replacement is intended. Existing screenshot and report paths are protected by default.
+
+The helper waits for the requested selector and font-loading status. These waits do not establish that all application data, images, or asynchronous work is ready.
+
+Exit codes:
+
+- `0`: collection completed; findings may still exist without `--strict`.
+- `1`: strict policy found issues requiring review.
+- `2`: argument, dependency, navigation, capture, or other operational failure.
+
+Without `--axe`, the helper reports layout/design heuristics and runtime errors. It does not perform automated contrast or accessible-name checks.
+
+With `--axe`, the report includes accessibility violations and incomplete checks requiring review. Neither a completed axe run nor an absence of violations establishes complete accessibility compliance.
+
+Only the requested URL and initial state are inspected. Authentication setup and interaction sequences require separate tooling or manual steps.
+
+Reports can contain application URLs, selectors, and error messages. Screenshots can contain sensitive content. Review artifacts before sharing or committing them.
 
 ### Visual review
 
-Use the available image-viewing capability to inspect captured images.
+Use an available image-viewing capability to open the screenshots.
 
 Check:
 
@@ -350,9 +390,13 @@ Check:
 - Canvas-rendered content.
 - Fidelity to the brief or existing system.
 
-Write concrete observations. Revise confirmed weaknesses within scope.
+Write concrete observations and revise confirmed weaknesses within scope.
 
-If screenshots were captured but not viewed, report exactly that. Never describe an unseen image.
+Screenshot capture is not visual inspection. The helper explicitly reports that it did not inspect the images.
+
+Computed font-family declarations do not prove which font rendered individual glyphs.
+
+If screenshots were captured but not viewed, report that limitation. Never describe an unseen image.
 
 ### Optional lint and direction tools
 
