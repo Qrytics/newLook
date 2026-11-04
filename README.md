@@ -157,39 +157,87 @@ The current helpers use Node.js. Their original documented baseline is Node 18+,
 
 Use a maintained Node release compatible with your project and chosen dependencies.
 
-### Screenshots and heuristics
+### Screenshots and accessibility checks
 
-`look.mjs` captures screenshots and reports heuristic findings such as small text, contrast, overflow, control sizing, missing names, and console errors.
+`look.mjs` captures screenshots and reports layout/design heuristics and runtime errors. Optional axe-core integration adds automated accessibility checks.
 
-It needs Playwright and a compatible Chromium browser.
+Start the application separately. The helper does not start servers; `--serve` and `--path` are unsupported.
 
-When dependency installation is authorized, one possible setup is:
-
-```sh
-npm install --save-dev @playwright/test
-npx playwright install chromium
-```
-
-Use the project's package manager and dependency policy.
-
-For an already-running application:
+From the newLook checkout:
 
 ```sh
 node skills/frontend-design/scripts/look.mjs --url "http://127.0.0.1:5173/" --tag after
 ```
 
-Use the actual application URL.
+Replace the example URL with the actual application URL.
 
-The helper's `--serve` route is Vite-specific.
+For accessibility checks and a saved JSON report:
+
+```sh
+node skills/frontend-design/scripts/look.mjs --url "http://127.0.0.1:5173/" --axe --json --report ".newlook/look-after.json" --tag after
+```
+
+Dependencies are resolved from the current directory or the helper's installation location. Use `--project DIR` to select another lookup directory.
+
+When installation is authorized, a project can provide dependencies with:
+
+```sh
+npm install --save-dev playwright axe-core
+npx playwright install chromium
+```
+
+Use the project's package manager and dependency policy. Installing newLook skills does not install these dependencies.
+
+Useful options:
+
+| Option | Purpose |
+|---|---|
+| `--project DIR` | Dependency lookup directory |
+| `--sizes LIST` | Viewports, such as `1600x1000,390x844` |
+| `--wait SELECTOR` | Application-readiness selector |
+| `--timeout MS` | Per-operation timeout |
+| `--out DIR` | Screenshot directory |
+| `--tag NAME` | Screenshot prefix |
+| `--full` | Full-page capture at all sizes |
+| `--axe` | Run axe-core |
+| `--json` | Print structured output |
+| `--report FILE` | Also save the JSON report |
+| `--strict` | Fail the review policy for findings or incomplete axe checks |
+| `--overwrite` | Explicitly permit replacing existing output files |
+
+Existing output files are protected by default. Use a new tag or explicitly allow replacement.
+
+Exit codes:
+
+- `0`: collection completed; findings may exist without strict mode.
+- `1`: strict policy found issues requiring review.
+- `2`: operational or input failure.
 
 Limitations:
 
-- Automated findings require interpretation.
-- Some backgrounds and rendered content are not covered.
-- Canvas text requires separate inspection.
-- Capturing screenshots does not mean an agent viewed them.
-- This is not a complete accessibility audit.
-- It does not duplicate all Hallmark rendered-tier checks.
+- Without `--axe`, automated contrast and accessible-name checks are not performed.
+- Axe violations and incomplete results require interpretation.
+- Automated accessibility testing is not complete compliance verification.
+- The helper captures the requested URL's initial state; it does not set up authentication or exercise interaction flows.
+- Font-loading readiness does not establish complete application readiness.
+- Computed font-family declarations do not establish actual glyph font usage.
+- Canvas, iframe, and shadow-DOM content require separate coverage.
+- Screenshot capture does not establish visual inspection.
+- This tool does not duplicate every Hallmark rendered-tier check.
+
+Screenshots and reports may contain sensitive application content. Review before sharing.
+
+#### Development tests
+
+From the newLook checkout:
+
+```sh
+npm ci
+npx playwright install chromium
+npm test
+```
+
+The current tests include browser capture and axe-core integration. Passing fixture tests does not establish correctness on every application, operating system, or browser.
 
 ### DOM source scan
 
