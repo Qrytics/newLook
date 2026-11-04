@@ -193,17 +193,52 @@ Limitations:
 
 ### DOM source scan
 
-`dom-contract.mjs` looks for source-level selector dependencies:
+`dom-contract.mjs` checks simple source-level selector dependencies.
+
+Standalone scan:
 
 ```sh
 node skills/frontend-design/scripts/dom-contract.mjs "../my-app"
 ```
 
-It is a regex-based heuristic, not a runtime contract verifier.
+Save a baseline before changing an application:
 
-It does not save or compare baselines automatically. Missing state-class styles can be reported without a failing exit code.
+```sh
+node skills/frontend-design/scripts/dom-contract.mjs "../my-app" --save "../my-app/.newlook/dom-before.json"
+```
 
-Inspect findings and test important interactions.
+Compare after the change:
+
+```sh
+node skills/frontend-design/scripts/dom-contract.mjs "../my-app" --compare "../my-app/.newlook/dom-before.json"
+```
+
+Replace the example application path with the actual directory.
+
+Baseline paths resolve from the current working directory, not automatically from the application directory.
+
+Saving creates a new file and refuses to overwrite an existing baseline. Use a new filename for each task.
+
+Options:
+
+- `--json`: structured report.
+- `--strict`: fail on warnings as well as errors.
+
+Exit codes:
+
+| Code | Meaning |
+|---|---|
+| 0 | No error-level findings; warnings may exist |
+| 1 | Findings failed the selected policy |
+| 2 | Invalid arguments, input failure, or operational error |
+
+Missing static ID definitions are error-level findings. State classes without detected styles are warnings. Baseline comparison can flag removed ID definitions and state styles.
+
+These findings require interpretation. Runtime-generated markup and unsupported patterns can produce false positives or omissions.
+
+The scanner is regex-based. It does not prove that components render or interactions work.
+
+Baselines contain relative source paths and selector names. Review them before committing or sharing.
 
 ### Direction catalog and legacy dealer
 
