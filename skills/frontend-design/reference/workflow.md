@@ -85,19 +85,50 @@ For Audit, keep observations in the report unless writing audit artifacts is aut
 
 ### Optional DOM scan
 
-When selector preservation matters:
+When selector preservation matters, use the static scanner.
+
+For a standalone scan:
 
 ```sh
 node "$NEWLOOK_ROOT/scripts/dom-contract.mjs" .
 ```
 
-Save the output when useful, then rerun after implementation.
+For a before-and-after comparison, save a baseline before editing:
 
-The current scanner is heuristic. Two runs are not an automatic baseline comparison.
+```sh
+node "$NEWLOOK_ROOT/scripts/dom-contract.mjs" . --save .newlook/dom-before.json
+```
 
-Dynamic markup can be missed. Behavioral classes do not always need styles. Missing class styles can appear in output without a failing exit code.
+After editing, compare against that same baseline:
 
-Inspect findings and relevant interactions rather than trusting the exit code alone.
+```sh
+node "$NEWLOOK_ROOT/scripts/dom-contract.mjs" . --compare .newlook/dom-before.json
+```
+
+Run these commands from the application directory.
+
+Saving a baseline creates directories if necessary and writes a file. Do this only when project writes are authorized. Existing baseline files are never overwritten; choose another filename for a new task.
+
+The baseline records selector names and relative source paths. Review artifacts before committing or sharing them.
+
+Options:
+
+- `--json`: machine-readable report.
+- `--strict`: warnings also produce exit code 1.
+
+Exit codes:
+
+- `0`: no error-level findings; warnings may remain.
+- `1`: error-level findings, or warnings under `--strict`.
+- `2`: invalid arguments, unreadable input, or operational failure.
+
+A missing static ID definition is an error-level review finding. A state class without detected styles is a warning because it may be a behavioral hook.
+
+Baseline comparison flags previously referenced IDs or styled state classes that are no longer detected. Intentional contract changes require review; a finding does not automatically mean the change is wrong.
+
+The scanner uses regex-based heuristics, not JavaScript or CSS parsing. Dynamic markup, generated styles, comments, routes, and external markup can produce omissions or false positives.
+
+A successful scan does not establish that controls work. Exercise important interactions separately.
 
 ## Gate 1 — Enough understanding to proceed
 
