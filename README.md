@@ -1,123 +1,275 @@
 # newLook
 
-A frontend design workflow for AI coding agents. It makes an agent build or update a UI from a fixed checklist
-instead of reaching for generic defaults, and it gives the agent tools to check its own work, so it still works
-when the model is weak:
+A deliberate frontend design workflow for AI coding agents.
 
-1. **Read the project and screenshot it** before touching anything.
-2. **Pick a direction, then write a brief.** A dealer offers three of fourteen genuinely different looks that fit the project and have not been used lately; the agent picks one and follows it exactly. This is what stops every redesign looking the same.
-3. **Build with tokens**, every state, and the project's own constraints kept.
-4. **Typography check by number**: no text under 12px, a real scale, sentence-case labels.
-5. **Measured audit**: screenshots at desktop and phone width, automatic checks for contrast, overflow, tiny text and tap targets, Hallmark's linter, and a check that the script's element ids and state classes survived the rewrite.
-6. **Report** what ran, what was caught, and what could not be checked.
+newLook combines concrete design decisions, scope control, implementation, and verification. It aims to prevent both generic, unconsidered UI and unnecessary redesigns of working applications.
 
-It works with Claude Code, Codex CLI, Cursor, OpenCode, and any agent that reads an `AGENTS.md` rules file.
+## Workflow
 
-## How it keeps redesigns from all looking alike
+1. Choose the mode and scope.
+2. Inspect the project and establish a baseline.
+3. Establish a concrete design approach.
+4. Implement the requested change.
+5. Verify source, interactions, and appearance.
+6. Resolve findings and report evidence.
 
-Left to choose freely, a model returns to the same few looks. So the choice is mechanical:
+For substantive Build and Redesign work, the agent must choose an explicit direction, establish hierarchy, and make a product-specific design decision.
 
-- `reference/directions.md` holds fourteen complete directions (bench, ledger, field-notes, signal, civic, atelier, market, blueprint, studio, arcade, press, terminal-light, gallery, poster). Each fixes a palette, installable fonts, layout, depth, shape, density, what fills empty space, and a signature element.
-- `scripts/direction.mjs --brief "..."` deals three that fit, skipping anything this project used before and penalising anything another project used recently. `--reroll` deals a different three. `--choose` records the pick.
-- `scripts/direction.mjs --verify` checks the finished build: the fonts are installed and used, the direction's colours are really in the CSS, and the fonts and main colours differ from every other project it has verified.
-- `reference/assets.md` decides what fills empty space (the user's images, a real screenshot, drawn SVG, credited library photos, or type), so it is not always a gradient and an icon.
+A catalog direction is optional. Deliberate direction selection is not.
 
-History lives in `<project>/.newlook/history.json` and `~/.newlook-history.json`.
+## Modes
 
-## Why it has tools, not just advice
-
-Telling a weak model "make it distinctive" does not work. It keeps the dark neon-green terminal look, never opens
-a screenshot, calls lint warnings "triaged", and gives four numbers equal weight. The fix is to give it commands
-that print hard numbers and force it to look at pictures. See `skills/frontend-design/reference/lessons.md`
-for exactly what went wrong on real runs.
-
-## What is in the repo
-
-| Path | What it is |
+| Mode | Purpose |
 |---|---|
-| `skills/frontend-design` | The router: a numbered checklist, plus `scripts/` and `reference/` (below). Original to this repo. |
-| `skills/frontend-design/scripts/direction.mjs` | Deals three design directions that fit the project and were not used lately, records the choice, and verifies the finished build really uses it and does not copy another project. |
-| `skills/frontend-design/scripts/look.mjs` | Takes desktop and phone screenshots and prints measured problems (text under 12px, low contrast, sideways scroll, small tap targets, unnamed controls, console errors). Needs only Playwright. |
-| `skills/frontend-design/scripts/dom-contract.mjs` | Lists the element ids and state classes your JavaScript and tests depend on, and fails if a redesign dropped one. |
-| `skills/frontend-design/scripts/lint.sh` | Runs Hallmark's linter without knowing where it is installed. |
-| `skills/frontend-design/reference/` | `directions.md` (the fourteen looks), `assets.md` (what fills space), `design-brief.md` (decide before coding), `lint-fixes.md` (the fix for every lint code), `lessons.md` (real mistakes), `libraries.md` (optional 3D, gradient, glass libraries). |
-| `skills/hallmark` | [Hallmark](https://github.com/nutlope/hallmark): distinctive pages, plus `sloplint.mjs`, a linter for generic-template tells. MIT. |
-| `skills/interface-design` | [Interface Design](https://github.com/Dammyjay93/interface-design): craft rules for dashboards and product UI, plus a saved `system.md`. MIT. |
-| `skills/typography` | [Practical Typography skill](https://github.com/danium/practicaltypography): web type rules and a ranked audit. MIT. |
-| `templates/` | A rules-file section and a plain-language workflow doc, for agents with no skill loader. |
-| `examples/` | Two real saved design systems from running this workflow on very different apps. |
-| `install.sh` | Copies the skills to the right folder for each agent. |
-| `NOTICE.md` | Third-party licenses and upstream links. |
+| Patch | A bounded correction |
+| Extend | New UI using an established system |
+| Redesign | An intentional visual or structural change |
+| Build | A new interface |
+| Audit | Inspection and recommendations without application edits |
 
-## Install
+Small fixes stay small. New builds and redesigns receive a fuller brief and visual review.
 
-```bash
-git clone git@github.com:Qrytics/newLook.git
+## Agent portability
+
+The canonical workflow is plain Markdown.
+
+Agents can use it through:
+
+- A native skill loader.
+- Project instructions that point to the workflow.
+- A direct request to read the workflow from a local checkout.
+
+Successful execution depends on the agent's actual capabilities and instruction support.
+
+The installer contains targets for Claude Code, `.agents/skills` readers, and OpenCode. An installation path alone does not establish compatibility with every product or version.
+
+Other agents can use the generic project or manual route. Native integrations should be documented and tested before being claimed as supported.
+
+## Start without installing
+
+Clone the repository:
+
+```sh
+git clone https://github.com/Qrytics/newLook.git
 cd newLook
-./install.sh                # auto-detects Claude Code, Codex/Cursor, OpenCode
 ```
 
-Or pick the target:
+Give your agent the actual local checkout path and this instruction:
 
-| Agent | Command | Installs to |
-|---|---|---|
-| Claude Code | `./install.sh --claude` | `~/.claude/skills` |
-| Codex CLI, Cursor, other `.agents` readers | `./install.sh --codex` | `~/.agents/skills` |
-| OpenCode | `./install.sh --opencode` | `~/.config/opencode/skills` |
-| Any other folder | `./install.sh --dir <path>` | the path you give |
-| Agent with only a rules file (no skills) | `./install.sh --project <your-repo>` | `AGENTS.md` section + `docs/frontend-design-workflow.md` in that repo |
+> Read templates/frontend-design-workflow.md in the newLook checkout. Follow its canonical workflow for my frontend task. Choose the appropriate mode, preserve unrelated work, and report actual verification results.
 
-`--dry-run` previews, `--force` overwrites skills already installed. Restart the agent afterward.
+The application being edited can be a separate repository.
 
-### Make it automatic
+Reading local files avoids relying on a web viewer to preserve complete source content.
 
-The `frontend-design` skill describes itself as the thing to use for any request to build, create, improve,
-redesign, restyle or fix a website, web app, landing page, component or UI. Many agents pick a skill from
-that description alone. To make it reliable, add one line to your global rules file:
+## Installation
 
-- Claude Code: `~/.claude/CLAUDE.md`
-- Codex and others: `~/.codex/AGENTS.md`, or `AGENTS.md` in the project
+The current installer requires Bash.
 
-```
-For ALL frontend/UI work (build, improve, redesign, restyle, polish or fix any website, web app,
-landing page, component or UI), always use the frontend-design skill and run all four passes
-without asking. Finish by reporting which passes ran and what the audit changed.
+### Project-local workflow
+
+From the newLook checkout:
+
+```sh
+bash install.sh --project "../my-app" --dry-run
 ```
 
-### Manual paste (no install at all)
+Replace `../my-app` with your actual application directory.
 
-Give the agent this prompt:
+Inspect the preview and the upgrade cautions below before running without `--dry-run`.
 
-> Read `templates/frontend-design-workflow.md` in the newLook repo and follow it for this change: [what you want].
-> Reuse the existing design system. Report which passes ran and what the audit changed.
+A project installation adds:
 
-## Requirements
+- A newLook section in `AGENTS.md`.
+- `docs/frontend-design-workflow.md`.
+- Helpers and references under `docs/newlook/`.
+- A subset of Hallmark files used by the helpers.
 
-- **Node 18+** for all the scripts. Without Node the agent falls back to the written checklist and must say it could not measure anything.
-- **Playwright with Chromium** for `look.mjs` (screenshots and measured checks): `npm i -D @playwright/test && npx playwright install chromium`. If you already have a browser, set `CHROME_PATH` to it and install `playwright-core`.
-- Not needed: `puppeteer-core`. Hallmark's own rendered tier wants it, but `look.mjs` covers the same ground, and `lint.sh` explains the "render tier not run" message.
+Agents must actually read the project instructions or be directed to the entry document.
 
-## Optional libraries
+### Native skill folders
 
-The router knows three libraries and uses them only when a design calls for one. They are not bundled:
+Available installer targets:
 
-- `@react-three/fiber` for real 3D in React
-- `@shadergradient/react` for animated gradient backgrounds, set in the brand's colors
-- [`liquid-glass-js`](https://github.com/dashersw/liquid-glass-js) for glass controls, one to three elements at most
+| Option | Destination |
+|---|---|
+| `--claude` | `~/.claude/skills` |
+| `--codex` | `~/.agents/skills` |
+| `--opencode` | `~/.config/opencode/skills` |
+| `--dir PATH` | Explicit custom destination |
 
-The skill skips them in dense dashboards and always supplies a reduced-motion and no-WebGL fallback.
+Example preview:
 
-## What has and has not been tested
+```sh
+bash install.sh --claude --dry-run
+```
 
-- Run end to end in **Claude Code** on two real apps: a React + Vite dashboard (`examples/metaflow/`) and a vanilla-JS canvas app (`examples/metabridge/`). Both ended with Hallmark's lint at 0 FAIL, 0 REFLEX, 0 WARN. The second was run again after a weaker model's attempt at the same checklist looked generic, and `reference/lessons.md` records what it got wrong.
-- The three scripts were tested on those real projects, and `look.mjs` was run against a deliberately broken page to confirm each check fires. `dom-contract.mjs` was shown to catch a dropped id and a state class with no style.
-- **Not tested** in Codex, Cursor, OpenCode or any other agent. The install paths come from Hallmark's own installer and each agent's documented skills folder, and the rules-file route is plain markdown, but how well each agent follows it is unverified.
-- `look.mjs` checks what the DOM exposes. It cannot see text drawn inside a `<canvas>`, an ugly layout, or a weak focal point. The checklist makes the agent open the screenshots for that, and a weak model may still do it badly.
-- `direction.mjs` was tested on six very different briefs (it dealt different, sensible directions for each), for exclusion across repeat redesigns, cross-project steering, reroll, and `--verify` on a real build and on two deliberately wrong ones. The fourteen directions' fonts were checked to exist on npm with the named CSS files, and their palettes were measured for overlap and tuned apart.
-- The brief-to-direction match is keyword scoring. It is a nudge: a human-style read of the three summaries still decides, and a very unusual project may get weak matches (the dealer says so).
-- `install.sh --project` was tested by installing into a scratch folder and running the copied scripts from there.
-- The bundled skills are unmodified copies taken on 2026-11-02 and may lag upstream. See `NOTICE.md`.
+Run without `--dry-run` only after confirming the destination.
+
+Restart or rescan the host agent as needed.
+
+### Current upgrade cautions
+
+The installer has not yet been redesigned for safe managed upgrades:
+
+- Project installation removes and recopies helper directories even without `--force`.
+- Existing newLook sections in `AGENTS.md` are left unchanged.
+- Existing global skill folders are skipped unless `--force` is supplied.
+- `--force` can overwrite local skill modifications.
+- Project installation still contains path rewriting inherited from an older template.
+- There is no managed uninstall or backup mechanism.
+
+Review and back up affected files before upgrading.
+
+When updating project instructions, manually replace only the existing newLook section with `templates/AGENTS-section.md`. Preserve unrelated instructions.
+
+## Make skill use explicit
+
+Where the agent supports applicable rules, add:
+
+> For frontend and UI work, use the newLook frontend-design workflow. Choose the appropriate mode, keep changes scoped, follow the design gates for Build and Redesign, and report checks and limitations honestly.
+
+Do not add obsolete instructions requiring "all four passes" or mandatory new fonts for every UI task.
+
+## Repository map
+
+| Path | Purpose |
+|---|---|
+| `skills/frontend-design/SKILL.md` | Native skill entry point |
+| `skills/frontend-design/reference/workflow.md` | Canonical workflow |
+| `skills/frontend-design/reference/design-brief.md` | Brief template |
+| `skills/frontend-design/reference/directions.md` | Direction catalog |
+| `skills/frontend-design/reference/lessons.md` | Failure patterns and remedies |
+| `skills/frontend-design/reference/lint-fixes.md` | Finding interpretation |
+| `skills/frontend-design/scripts/` | Optional helper tools |
+| `skills/hallmark/` | Bundled marketing/editorial guidance and lint tools |
+| `skills/interface-design/` | Bundled product UI guidance |
+| `skills/typography/` | Bundled typography guidance |
+| `templates/` | No-loader entry point and project instruction section |
+| `examples/` | Historical saved design-system examples |
+| `NOTICE.md` | Third-party attribution |
+
+Supporting references provide craft guidance. The canonical workflow governs scope, permissions, and evidence reporting.
+
+## Helper tools
+
+The current helpers use Node.js. Their original documented baseline is Node 18+, but installed browser and framework dependencies may require a newer version.
+
+Use a maintained Node release compatible with your project and chosen dependencies.
+
+### Screenshots and heuristics
+
+`look.mjs` captures screenshots and reports heuristic findings such as small text, contrast, overflow, control sizing, missing names, and console errors.
+
+It needs Playwright and a compatible Chromium browser.
+
+When dependency installation is authorized, one possible setup is:
+
+```sh
+npm install --save-dev @playwright/test
+npx playwright install chromium
+```
+
+Use the project's package manager and dependency policy.
+
+For an already-running application:
+
+```sh
+node skills/frontend-design/scripts/look.mjs --url "http://127.0.0.1:5173/" --tag after
+```
+
+Use the actual application URL.
+
+The helper's `--serve` route is Vite-specific.
+
+Limitations:
+
+- Automated findings require interpretation.
+- Some backgrounds and rendered content are not covered.
+- Canvas text requires separate inspection.
+- Capturing screenshots does not mean an agent viewed them.
+- This is not a complete accessibility audit.
+- It does not duplicate all Hallmark rendered-tier checks.
+
+### DOM source scan
+
+`dom-contract.mjs` looks for source-level selector dependencies:
+
+```sh
+node skills/frontend-design/scripts/dom-contract.mjs "../my-app"
+```
+
+It is a regex-based heuristic, not a runtime contract verifier.
+
+It does not save or compare baselines automatically. Missing state-class styles can be reported without a failing exit code.
+
+Inspect findings and test important interactions.
+
+### Direction catalog and legacy dealer
+
+List directions:
+
+```sh
+node skills/frontend-design/scripts/direction.mjs --list
+```
+
+The dealer can suggest directions and record choices.
+
+History-writing commands use:
+
+- The project's `.newlook/history.json`.
+- The project's `.newlook/last-deal.json` for dealt alternatives.
+- The home directory's `.newlook-history.json`.
+
+Use those commands only when their writes are authorized.
+
+The legacy verifier checks source configuration and history-based similarity. It does not prove rendered font use, visible palette use, visual quality, or originality.
+
+Shared fonts and colors are not independently defects.
+
+### Aesthetic lint
+
+`lint.sh` locates Hallmark's source linter.
+
+It requires Bash and Node. Some optional rendered checks need additional dependencies.
+
+Interpret findings using `reference/lint-fixes.md`.
+
+A justified exception does not turn a failing command into a passing command. Report both accurately.
+
+## Evidence and testing status
+
+Historical documentation reported end-to-end use of an earlier workflow in Claude Code on two applications, with examples preserved under `examples/`.
+
+Those historical runs do not establish that the current rewritten workflow or all installer targets have been validated.
+
+Do not assume verified behavior in Codex, Cursor, OpenCode, Muse, or other agents without current test evidence.
+
+The documentation changes do not themselves repair or test the helper implementations.
+
+Before a validated release, test:
+
+- Patch scope preservation.
+- Extension of an existing system.
+- New builds and redesigns.
+- Audit without application edits.
+- Missing browser, Node, network, or image-viewing capability.
+- Installation and upgrades in scratch directories.
+- Important interactions and responsive states.
+- Truthful reporting of failures and unavailable checks.
+
+## Optional visual dependencies
+
+References discuss optional libraries for effects such as 3D, gradients, and glass.
+
+They are not bundled requirements.
+
+Add them only when they serve the task, are authorized, and have appropriate performance, accessibility, and fallback behavior.
 
 ## License
 
-MIT for the files written for newLook. The bundled skills keep their own MIT licenses. See `LICENSE` and `NOTICE.md`.
+Original newLook files use the repository's MIT license.
+
+Bundled third-party material retains its own licenses and attribution.
+
+See `LICENSE` and `NOTICE.md`.
